@@ -1,0 +1,88 @@
+2026-06-03: Completed Issue #01 (Project scaffold + `youtrack login`).
+- Created `pyproject.toml` with package entry points and dependencies.
+- Implemented `config` module in `src/youtrack_cli/config.py` for reading/writing configuration (supporting `YOUTRACK_TOKEN` and `YOUTRACK_CONFIG_DIR` environment variables).
+- Implemented `cli` skeleton and `youtrack login` command in `src/youtrack_cli/cli.py`.
+- Wrote unit/integration tests in `tests/test_config.py` and `tests/test_cli.py`. All tests pass.
+- Moved issue `01-project-scaffold-and-login.md` to `issues/completed/`.
+
+2026-06-03: Completed Issue #02 (youtrack project list + youtrack project create).
+- Implemented `client` module in `src/youtrack_cli/client.py` wrapping `httpx`, handling Bearer token authorization headers, and converting HTTP errors to typed `YouTrackAPIError` exceptions.
+- Implemented `projects` module in `src/youtrack_cli/projects.py` with support for listing projects and creating projects (by fetching leader ID via `GET /api/users/me` first).
+- Implemented `formatters` module in `src/youtrack_cli/formatters.py` to support formatting project lists as aligned text tables or JSON arrays.
+- Wired subcommands `project list` and `project create` into `cli.py`.
+- Wrote unit and integration tests for `client`, `projects`, and CLI commands in `tests/test_client.py`, `tests/test_projects.py`, and `tests/test_cli.py`. All tests pass.
+- Moved issue `02-project-list-and-create.md` to `issues/completed/`.
+
+2026-06-03: Completed Issue #03 (`youtrack issue create`).
+- Created `issues` module in `src/youtrack_cli/issues.py` with `Issue` domain class and `create_issue` function.
+- Implemented logic to resolve the project's internal `id` by listing projects first (using `api/admin/projects?fields=id,shortName`) and performing a case-insensitive search by project shortName.
+- Handled optional custom fields (`Assignee` as `SingleUserIssueCustomField`, `Priority` and `Type` as `SingleEnumIssueCustomField`) to map to YouTrack's expected API payload.
+- Added `format_issue_json` in `src/youtrack_cli/formatters.py` to format single issues.
+- Wired subcommand `issue create` into `cli.py` with support for optional arguments and `--json` format.
+- Wrote unit and integration tests for `issues` and CLI commands in `tests/test_issues.py` and `tests/test_cli.py`. All tests pass.
+- Moved issue `03-issue-create.md` to `issues/completed/`.
+
+2026-06-03: Completed Issue #04 (youtrack issue list with filtering).
+- Extended the `Issue` dataclass with `status` and `assignee` optional fields (defaulting to None for compatibility with existing tests).
+- Implemented `list_issues` in `src/youtrack_cli/issues.py` to compile specific filters (`--tag`, `--status`, `--assignee`) along with raw `--query` into a combined YouTrack query string.
+- Handled API response parsing to extract `State` (as `status`) and `Assignee` values from custom field arrays.
+- Implemented `format_issues_table` and `format_issues_json` in `src/youtrack_cli/formatters.py` to support CLI table and JSON display formats.
+- Wired `youtrack issue list` CLI subcommand into `cli.py` with all specific filters and JSON options.
+- Wrote unit and integration tests for query merging, parsing logic, CLI flag binding, and help menus in tests/test_issues.py and tests/test_cli.py. All tests pass.
+- Moved issue `04-issue-list-with-filtering.md` to `issues/completed/`.
+
+2026-06-03: Completed Issue #05 (youtrack issue move).
+- Implemented `move_issue` in `src/youtrack_cli/issues.py` to update an issue's status (State) via YouTrack's `POST /api/issues/{issue_id}` endpoint.
+- Wired the `youtrack issue move` CLI command in `src/youtrack_cli/cli.py` with the positional `issue_id` argument and the `--status` option.
+- Wrote TDD tests: unit tests in `tests/test_issues.py` and CLI integration tests in `tests/test_cli.py` to cover successful moves, API error handling, and argument/option validation. All tests pass.
+- Moved issue `05-issue-move.md` to `issues/completed/`.
+
+2026-06-03: Completed Issue #06 (youtrack tag create + youtrack issue tag).
+- Created the `tags` module in `src/youtrack_cli/tags.py` with `Tag` domain class and `create_tag` function.
+- Implemented `tag_issue` in `src/youtrack_cli/issues.py` to fetch existing tags (using `GET /api/tags?fields=id,name`), match the requested tag by name, and apply it to an issue (via `POST /api/issues/{issue_id}/tags?fields=id,name`).
+- Added subcommand `tag create` under `tag` group, and subcommand `tag` under `issue` group.
+- Wrote unit and CLI integration tests for tag creation, tag assignment, tag existence validation, and CLI command help blocks. All tests pass.
+- Moved issue `06-tag-create-and-issue-tag.md` to `issues/completed/`.
+
+2026-06-03: Completed Issue #10 (Migrate build tooling to uv).
+- Migrated `pyproject.toml` to use `uv_build` as the PEP 517 build backend and removed setuptools configuration.
+- Configured PEP 735 `[dependency-groups]` for development dependencies (`pytest` and `respx`) to ensure automatic sync.
+- Created `.gitignore` to exclude `.venv/`, `build/`, `dist/`, caches, and egg-info folders.
+- Ran `uv sync` to lock dependencies and generate `uv.lock`.
+- Verified the build and environment via `uv run pytest`, `uv run youtrack --help`, and `uv tool install .`.
+- Removed legacy setuptools artifacts (`build/` and `src/*.egg-info/`).
+- Moved YouTrack issue `YTCLI-10` to "Fixed" state.
+
+2026-06-03: Completed Issue #13 (Add --tag flag to issue create for atomic tag assignment).
+- Extended the `create_issue` function in `src/youtrack_cli/issues.py` with an optional `tags` parameter.
+- Implemented in-memory tag resolution from a single `GET api/tags?fields=id,name` API call to fetch all user-visible tags.
+- Added fail-fast validation in `create_issue` that raises `YouTrackAPIError` if any requested tag does not exist.
+- Wired the `--tag` repeatable option into the `youtrack issue create` command in `src/youtrack_cli/cli.py`.
+- Wrote TDD tests covering single tag resolution, multiple tags resolution, and fail-fast validation in `tests/test_issues.py` and `tests/test_cli.py`. All tests pass.
+- Moved YouTrack issue `YTCLI-13` to "Fixed" state.
+
+2026-06-03: Completed Issue #12 (Add youtrack tag list command).
+- Implemented the `list_tags` function in `src/youtrack_cli/tags.py` to fetch all tags visible to the authenticated user.
+- Added `format_tags_table` and `format_tags_json` formatting functions in `src/youtrack_cli/formatters.py` to output tags in a human-readable table or as a JSON array.
+- Registered the `youtrack tag list` command in `src/youtrack_cli/cli.py` with the `--json` option.
+- Wrote TDD tests for tag list fetching, formatting (for empty and non-empty lists), and CLI invocation. All tests pass.
+- Moved YouTrack issue `YTCLI-12` to "Fixed" state.
+
+2026-06-03: Completed Issue #14 (Add youtrack issue types command to list valid type values per project).
+- Implemented `list_issue_types` in `src/youtrack_cli/issues.py` to resolve the project's internal ID and retrieve custom fields, filtering for the "Type" custom field and returning its bundle value names.
+- Added `format_issue_types_table` and `format_issue_types_json` formatting functions in `src/youtrack_cli/formatters.py` to format issue types as a human-readable table or a JSON array of strings.
+- Registered the `youtrack issue types` CLI command under the `issue` command group in `src/youtrack_cli/cli.py` with `--project` and `--json` options.
+- Wrote TDD tests covering project ID resolution, custom field fetching, error handling for unknown projects, formatting variations (empty/non-empty), and Click CLI options. All tests pass.
+- Moved YouTrack issue `YTCLI-14` to "Fixed" state.
+- Moved the completed PRD file to `docs/prd/completed/tag-management-and-issue-types-PRD.md`.
+2026-06-03: Completed Issue #11 (Write README and add MIT license).
+- Created `LICENSE` file with MIT license text.
+- Created `README.md` with project description, installation options, quickstart instructions, configuration guidelines, full command reference, and contributing guidelines.
+- Updated `pyproject.toml` to reference `README.md` and the `LICENSE` file.
+- Moved YouTrack issue `YTCLI-11` to "Fixed" state.
+
+2026-06-03: Completed Issue #15 (Test tagging issue creation).
+- Verified the issue `YTCLI-15` "Test tagging issue creation" created by Ixubot.
+- Confirmed all unit and CLI integration tests pass.
+- Moved YouTrack issue `YTCLI-15` to "Fixed" state.
+

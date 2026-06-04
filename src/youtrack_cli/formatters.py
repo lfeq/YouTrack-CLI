@@ -120,6 +120,32 @@ def format_issue_types_json(types: List[str]) -> str:
     return json.dumps(types, indent=2)
 
 
+def format_issue_priorities_table(priorities: List[str]) -> str:
+    """Format a list of priorities into a human-readable text table."""
+    if not priorities:
+        return "No priorities found."
+    
+    headers = ["PRIORITY"]
+    col_width = len(headers[0])
+    for p in priorities:
+        col_width = max(col_width, len(p))
+        
+    lines = [
+        f"{headers[0]:<{col_width}}",
+        f"{'-' * col_width}"
+    ]
+    for p in priorities:
+        lines.append(f"{p:<{col_width}}")
+        
+    return "\n".join(lines)
+
+
+def format_issue_priorities_json(priorities: List[str]) -> str:
+    """Format a list of priorities into a JSON array string."""
+    return json.dumps(priorities, indent=2)
+
+
+
 def format_issue_detail_table(issue) -> str:
     """Format an issue's details and comments into a human-readable text block."""
     lines = [

@@ -570,6 +570,113 @@ def test_format_issue_types_json():
     assert parsed == ["Bug", "Feature"]
 
 
+def test_format_issue_priorities_table_empty():
+    from youtrack_cli.formatters import format_issue_priorities_table
+    assert format_issue_priorities_table([]) == "No priorities found."
+
+
+def test_format_issue_priorities_table_non_empty():
+    from youtrack_cli.formatters import format_issue_priorities_table
+    priorities = ["Critical", "Major", "Normal", "Minor"]
+    expected = (
+        "PRIORITY\n"
+        "--------\n"
+        "Critical\n"
+        "Major   \n"
+        "Normal  \n"
+        "Minor   "
+    )
+    assert format_issue_priorities_table(priorities) == expected
+
+
+def test_format_issue_priorities_json():
+    from youtrack_cli.formatters import format_issue_priorities_json
+    import json
+    priorities = ["Critical", "Major"]
+    result = format_issue_priorities_json(priorities)
+    parsed = json.loads(result)
+    assert parsed == ["Critical", "Major"]
+
+
+
+def test_list_issue_priorities_success():
+    from youtrack_cli.issues import list_issue_priorities
+    mock_client = MagicMock(spec=YouTrackClient)
+    mock_client._request.side_effect = [
+        [
+            {"id": "0-0", "name": "Demo Project", "shortName": "DEMO"},
+        ],
+        [
+            {
+                "field": {"name": "Assignee"},
+                "bundle": None
+            },
+            {
+                "field": {"name": "Priority"},
+                "bundle": {
+                    "values": [
+                        {"name": "Critical"},
+                        {"name": "Major"},
+                        {"name": "Normal"},
+                        {"name": "Minor"}
+                    ]
+                }
+            }
+        ]
+    ]
+
+    priorities = list_issue_priorities(mock_client, "DEMO")
+    assert priorities == ["Critical", "Major", "Normal", "Minor"]
+    assert mock_client._request.call_count == 2
+    mock_client._request.assert_any_call("GET", "api/admin/projects?fields=id,shortName")
+    mock_client._request.assert_any_call(
+        "GET",
+        "api/admin/projects/0-0/customFields?fields=field(name),bundle(values(name))"
+    )
+
+
+def test_list_issue_priorities_project_not_found():
+    from youtrack_cli.issues import list_issue_priorities
+    mock_client = MagicMock(spec=YouTrackClient)
+    mock_client._request.return_value = [
+        {"id": "0-1", "name": "Other Project", "shortName": "OTHER"},
+    ]
+
+    with pytest.raises(YouTrackAPIError) as exc_info:
+        list_issue_priorities(mock_client, "DEMO")
+
+    assert "Project with short ID 'DEMO' not found" in str(exc_info.value)
+    assert mock_client._request.call_count == 1
+    mock_client._request.assert_called_once_with("GET", "api/admin/projects?fields=id,shortName")
+
+
+def test_list_issue_priorities_no_priority_field():
+    from youtrack_cli.issues import list_issue_priorities
+    mock_client = MagicMock(spec=YouTrackClient)
+    mock_client._request.side_effect = [
+        [
+            {"id": "0-0", "name": "Demo Project", "shortName": "DEMO"},
+        ],
+        [
+            {
+                "field": {"name": "Assignee"},
+                "bundle": None
+            }
+        ]
+    ]
+
+    priorities = list_issue_priorities(mock_client, "DEMO")
+    assert priorities == []
+    assert mock_client._request.call_count == 2
+    mock_client._request.assert_any_call("GET", "api/admin/projects?fields=id,shortName")
+    mock_client._request.assert_any_call(
+        "GET",
+        "api/admin/projects/0-0/customFields?fields=field(name),bundle(values(name))"
+    )
+
+
+
+
 def test_format_issue_detail_table_populated():
     from youtrack_cli.issues import IssueDetail, Comment
     from youtrack_cli.formatters import format_issue_detail_table

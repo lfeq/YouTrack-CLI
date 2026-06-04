@@ -48,7 +48,7 @@ Commands follow a **noun-first** pattern: `youtrack <noun> <verb> [args] [flags]
 
 | Noun | Verbs |
 |------|-------|
-| `issue` | `create`, `list`, `show`, `move`, `tag`, `link`, `comment`, `update`, `types` |
+| `issue` | `create`, `list`, `show`, `move`, `tag`, `link`, `comment`, `update`, `types`, `priorities` |
 | `project` | `create`, `list` |
 | `tag` | `create`, `list` |
 | `login` | _(top-level command, no sub-verb)_ |
@@ -57,7 +57,7 @@ Commands follow a **noun-first** pattern: `youtrack <noun> <verb> [args] [flags]
 
 | Flag | Scope | Purpose |
 |------|-------|---------|
-| `--project` | `issue create`, `issue list` | Required project short ID |
+| `--project` | `issue create`, `issue list`, `issue types`, `issue priorities` | Required project short ID |
 | `--summary` | `issue create` | Required issue title |
 | `--description` | `issue create` | Optional issue body |
 | `--status` | `issue move`, `issue list` | Target/filter status name |

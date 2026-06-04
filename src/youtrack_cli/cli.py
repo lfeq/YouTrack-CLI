@@ -1,8 +1,10 @@
 import sys
+from importlib.metadata import version as _pkg_version
 import click
 from youtrack_cli.config import save_config, ConfigError
 
 @click.group()
+@click.version_option(version=_pkg_version("youtrack-cli"), prog_name="youtrack")
 def main():
     """YouTrack CLI — Interact with YouTrack from the command line."""
     pass
@@ -209,6 +211,28 @@ def issue_types(project: str, json_output: bool):
     except (ConfigError, YouTrackAPIError) as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+
+
+@issue_group.command(name="priorities")
+@click.option("--project", required=True, help="Project short ID (e.g. DEMO)")
+@click.option("--json", "json_output", is_flag=True, help="Emit JSON instead of human-readable output")
+def issue_priorities(project: str, json_output: bool):
+    """List valid priority values for a project."""
+    try:
+        from youtrack_cli.client import get_client, YouTrackAPIError
+        from youtrack_cli.issues import list_issue_priorities
+        from youtrack_cli.formatters import format_issue_priorities_table, format_issue_priorities_json
+        
+        client = get_client()
+        priorities = list_issue_priorities(client, project)
+        if json_output:
+            click.echo(format_issue_priorities_json(priorities))
+        else:
+            click.echo(format_issue_priorities_table(priorities))
+    except (ConfigError, YouTrackAPIError) as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
 
 
 @issue_group.command(name="link")

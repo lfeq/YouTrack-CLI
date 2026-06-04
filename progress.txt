@@ -136,3 +136,25 @@
 - Updated the local PRD `docs/prd/prd-publishing-and-agent-workflow-PRD.md` to mark all requirements/user stories as completed and moved it to `docs/prd/completed/`.
 - Moved YouTrack issue `YTCLI-22` to the "Fixed" state.
 - Note for the next person: The PRD is fully complete, and all issues are marked as completed. There are no remaining unresolved issues in YouTrack.
+
+2026-06-03: Completed Issue #26/#27 (Priority discovery command: issue priorities).
+- Verified and confirmed the full implementation of `list_issue_priorities` in `src/youtrack_cli/issues.py` (same two-step pattern as `list_issue_types`: project ID resolution then custom fields fetch filtering for "Priority").
+- Verified and confirmed `format_issue_priorities_table` and `format_issue_priorities_json` formatters in `src/youtrack_cli/formatters.py`.
+- Verified and confirmed `youtrack issue priorities --project <ID> [--json]` CLI command registered under the `issue` group in `src/youtrack_cli/cli.py`.
+- Updated `CONTEXT.md`: added `priorities` to the `issue` verb table; updated `--project` flag scope to include `issue priorities`.
+- All 117 tests pass. Live smoke test against YTCLI project returns: Show-stopper, Critical, Major, Normal, Minor.
+- Moved YouTrack issues `YTCLI-26` and `YTCLI-27` to "Fixed" state.
+- Note for the next person: Remaining open issues are YTCLI-28 (--version flag) and YTCLI-29 (README upgrade instructions) — both are small, standalone improvements.
+
+2026-06-03: Completed Issue #28 (Add --version flag to youtrack CLI).
+- Added `from importlib.metadata import version as _pkg_version` import to `src/youtrack_cli/cli.py`.
+- Decorated the `main` click Group with `@click.version_option(version=_pkg_version("youtrack-cli"), prog_name="youtrack")`.
+- Wrote TDD test `test_cli_version` in `tests/test_cli.py` asserting exit_code==0 and "0.2.0" in output.
+- Version is read dynamically from installed package metadata so it stays in sync with pyproject.toml automatically.
+- Note for the next person: Only YTCLI-29 (README upgrade instructions) remains open — it is purely documentation.
+
+2026-06-03: Completed Issue #29 (Add upgrade instructions to README).
+- Added "Updating" section to README.md immediately after "Installation" and before "Quickstart".
+- Section shows `pipx upgrade youtrack-cli` and `uv tool upgrade youtrack-cli` commands matching the style of the Installation section.
+- No other README content was changed per the issue's acceptance criteria.
+- Note for the next person: All issues are now resolved. The prd-publishing-and-agent-workflow PRD is fully complete. The README command reference table is outdated (missing link/comment/show/update/priorities commands) — a follow-up issue could be filed for that if needed.

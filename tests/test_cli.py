@@ -11,6 +11,13 @@ def test_cli_help():
     # Also assert commands structure / groups
     assert "Show this message and exit." in result.output
 
+
+def test_cli_version():
+    runner = CliRunner()
+    result = runner.invoke(main, ["--version"])
+    assert result.exit_code == 0
+    assert "0.2.0" in result.output
+
 def test_cli_login_success(tmp_path):
     runner = CliRunner()
     config_dir = tmp_path / "youtrack-cli"
@@ -812,6 +819,128 @@ def test_cli_issue_help_lists_types():
     assert result.exit_code == 0
     assert "types" in result.output
     assert "List valid type values for a project" in result.output
+
+
+@respx.mock
+def test_cli_issue_priorities_success(tmp_path):
+    runner = CliRunner()
+    config_dir = tmp_path / "youtrack-cli"
+    save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
+    env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
+
+    # Mock projects API (to resolve project ID)
+    respx.get("https://example.youtrack.cloud/api/admin/projects?fields=id,shortName").respond(
+        status_code=200,
+        json=[{"id": "0-0", "name": "Demo Project", "shortName": "DEMO"}]
+    )
+    # Mock custom fields API
+    respx.get("https://example.youtrack.cloud/api/admin/projects/0-0/customFields?fields=field(name),bundle(values(name))").respond(
+        status_code=200,
+        json=[
+            {
+                "field": {"name": "Priority"},
+                "bundle": {
+                    "values": [
+                        {"name": "Critical"},
+                        {"name": "Major"}
+                    ]
+                }
+            }
+        ]
+    )
+
+    result = runner.invoke(main, ["issue", "priorities", "--project", "DEMO"], env=env)
+    assert result.exit_code == 0
+    assert "PRIORITY" in result.output
+    assert "Critical" in result.output
+    assert "Major" in result.output
+
+
+@respx.mock
+def test_cli_issue_priorities_json(tmp_path):
+    runner = CliRunner()
+    config_dir = tmp_path / "youtrack-cli"
+    save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
+    env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
+
+    respx.get("https://example.youtrack.cloud/api/admin/projects?fields=id,shortName").respond(
+        status_code=200,
+        json=[{"id": "0-0", "name": "Demo Project", "shortName": "DEMO"}]
+    )
+    respx.get("https://example.youtrack.cloud/api/admin/projects/0-0/customFields?fields=field(name),bundle(values(name))").respond(
+        status_code=200,
+        json=[
+            {
+                "field": {"name": "Priority"},
+                "bundle": {
+                    "values": [
+                        {"name": "Critical"}
+                    ]
+                }
+            }
+        ]
+    )
+
+    result = runner.invoke(main, ["issue", "priorities", "--project", "DEMO", "--json"], env=env)
+    assert result.exit_code == 0
+    import json
+    parsed = json.loads(result.output)
+    assert parsed == ["Critical"]
+
+
+@respx.mock
+def test_cli_issue_priorities_project_not_found(tmp_path):
+    runner = CliRunner()
+    config_dir = tmp_path / "youtrack-cli"
+    save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
+    env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
+
+    respx.get("https://example.youtrack.cloud/api/admin/projects?fields=id,shortName").respond(
+        status_code=200,
+        json=[{"id": "0-1", "name": "Other Project", "shortName": "OTHER"}]
+    )
+
+    result = runner.invoke(main, ["issue", "priorities", "--project", "DEMO"], env=env)
+    assert result.exit_code != 0
+    assert "Error: Project with short ID 'DEMO' not found" in result.output
+
+
+@respx.mock
+def test_cli_issue_priorities_no_fields(tmp_path):
+    runner = CliRunner()
+    config_dir = tmp_path / "youtrack-cli"
+    save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
+    env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
+
+    respx.get("https://example.youtrack.cloud/api/admin/projects?fields=id,shortName").respond(
+        status_code=200,
+        json=[{"id": "0-0", "name": "Demo Project", "shortName": "DEMO"}]
+    )
+    respx.get("https://example.youtrack.cloud/api/admin/projects/0-0/customFields?fields=field(name),bundle(values(name))").respond(
+        status_code=200,
+        json=[]
+    )
+
+    result = runner.invoke(main, ["issue", "priorities", "--project", "DEMO"], env=env)
+    assert result.exit_code == 0
+    assert "No priorities found." in result.output
+
+
+def test_cli_issue_priorities_help():
+    runner = CliRunner()
+    result = runner.invoke(main, ["issue", "priorities", "--help"])
+    assert result.exit_code == 0
+    assert "--project" in result.output
+    assert "--json" in result.output
+
+
+def test_cli_issue_help_lists_priorities():
+    runner = CliRunner()
+    result = runner.invoke(main, ["issue", "--help"])
+    assert result.exit_code == 0
+    assert "priorities" in result.output
+    assert "List valid priority values for a project" in result.output
+
 
 
 @respx.mock

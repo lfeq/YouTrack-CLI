@@ -298,6 +298,38 @@ def list_issue_types(client: YouTrackClient, project_short_name: str) -> List[st
     return []
 
 
+def list_issue_priorities(client: YouTrackClient, project_short_name: str) -> List[str]:
+    """List valid issue priorities for a project."""
+    # 1. Fetch projects to map shortName to ID
+    projects_data = client._request("GET", "api/admin/projects?fields=id,shortName")
+    
+    project_id = None
+    for project in projects_data:
+        if project["shortName"].upper() == project_short_name.upper():
+            project_id = project["id"]
+            break
+            
+    if not project_id:
+        raise YouTrackAPIError(f"Project with short ID '{project_short_name}' not found")
+        
+    # 2. Fetch project custom fields
+    url = f"api/admin/projects/{project_id}/customFields?fields=field(name),bundle(values(name))"
+    custom_fields = client._request("GET", url)
+    
+    # 3. Filter for the "Priority" custom field and extract its values
+    for cf in custom_fields:
+        field = cf.get("field")
+        if field and isinstance(field, dict) and field.get("name") == "Priority":
+            bundle = cf.get("bundle")
+            if bundle and isinstance(bundle, dict):
+                values = bundle.get("values")
+                if isinstance(values, list):
+                    return [val["name"] for val in values if isinstance(val, dict) and "name" in val]
+                    
+    return []
+
+
+
 def link_subtask(client: YouTrackClient, child_id: str, parent_id: str) -> None:
     """Create a Subtask relationship making child_id a subtask of parent_id."""
     client._request(

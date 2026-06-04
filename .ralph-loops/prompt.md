@@ -7,6 +7,6 @@
 4. Update the PRD with the work that was done.
 5. Append your progress to the progress.txt file.
    Use this to leave a note for the next person working in the codebase.
-6. Move the issue to the completed folder
+6. Mark the issues as completed.
    ONLY WORK ON A SINGLE FEATURE.
 If the PRD is complete, output <promise>COMPLETE</promise>."

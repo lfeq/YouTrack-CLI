@@ -23,6 +23,20 @@ uv tool install youtrack-cli
 
 ---
 
+## Updating
+
+### Via pipx
+```bash
+pipx upgrade youtrack-cli
+```
+
+### Via uv
+```bash
+uv tool upgrade youtrack-cli
+```
+
+---
+
 ## Quickstart
 
 ### 1. Authenticate / Login

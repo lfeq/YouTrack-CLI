@@ -1,6 +1,6 @@
 ---
 name: to-issues
-description: Break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.
+description: Break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Accepts a PRD Epic short ID (e.g. YTCLI-50) as an argument.
 ---
 
 # To Issues
@@ -13,7 +13,7 @@ Use youtrack cli (youtrack --help) to push issues.
 
 ### 1. Gather context
 
-Work from whatever is already in the conversation context. If the user passes an issue reference (issue number, URL, or path) as an argument, fetch it from the issue tracker and read its full body and comments.
+Work from whatever is already in the conversation context. If the user passes an issue reference or a PRD Epic short ID (e.g. `YTCLI-50`) as an argument, fetch it from the issue tracker using `youtrack issue show <epic-id>` and read its full body (the PRD description) and comments.
 
 ### 2. Explore the codebase (optional)
 
@@ -51,14 +51,16 @@ Iterate until the user approves the breakdown.
 
 ### 5. Publish the issues to the issue tracker
 
-For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise.
+For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the `ready-for-agent` tag.
+
+You must link every implementation issue beneath the PRD Epic by passing `--parent <epic-id>` (the PRD Epic short ID, e.g. `YTCLI-50`) to the `youtrack issue create` command.
 
 Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field.
 
 <issue-template>
 ## Parent
 
-A reference to the parent issue on the issue tracker (if the source was an existing issue, otherwise omit this section).
+The parent PRD Epic ID on the issue tracker (e.g. `YTCLI-50`), establishing a Subtask link relationship.
 
 ## What to build
 

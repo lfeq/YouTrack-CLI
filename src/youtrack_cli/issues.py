@@ -12,6 +12,14 @@ class Issue:
     assignee: Optional[str] = None
 
 
+@dataclass
+class Comment:
+    id: str
+    text: str
+    author: str
+    created: int
+
+
 def create_issue(
     client: YouTrackClient,
     project_short_name: str,
@@ -21,6 +29,7 @@ def create_issue(
     priority: Optional[str] = None,
     type_name: Optional[str] = None,
     tags: Optional[List[str]] = None,
+    parent: Optional[str] = None,
 ) -> Issue:
     """Create a new issue in YouTrack."""
     # 1. Fetch projects to map shortName to ID
@@ -96,6 +105,9 @@ def create_issue(
     # 4. POST payload to create the issue
     data = client._request("POST", "api/issues?fields=id,idReadable,summary,description", json=payload)
     
+    if parent:
+        link_subtask(client, data["idReadable"], parent)
+
     return Issue(
         id=data["id"],
         id_readable=data["idReadable"],
@@ -110,6 +122,8 @@ def list_issues(
     status: Optional[str] = None,
     assignee: Optional[str] = None,
     query: Optional[str] = None,
+    unresolved: bool = False,
+    top: Optional[int] = 50,
 ) -> List[Issue]:
     """List issues in a project with filtering."""
     # 1. Build the query string
@@ -130,17 +144,24 @@ def list_issues(
         assignee_val = f'"{assignee}"' if ' ' in assignee else assignee
         parts.append(f"assignee: {assignee_val}")
         
+    if unresolved:
+        parts.append("#Unresolved")
+        
     query_str = " ".join(parts)
     
     # 2. Call the REST API
     fields = "id,idReadable,summary,description,customFields(name,value(name,login))"
+    params = {
+        "fields": fields,
+        "query": query_str
+    }
+    if top is not None and top > 0:
+        params["$top"] = top
+        
     data = client._request(
         "GET",
         "api/issues",
-        params={
-            "fields": fields,
-            "query": query_str
-        }
+        params=params
     )
     
     # 3. Parse the issues
@@ -275,6 +296,187 @@ def list_issue_types(client: YouTrackClient, project_short_name: str) -> List[st
                     return [val["name"] for val in values if isinstance(val, dict) and "name" in val]
                     
     return []
+
+
+def list_issue_priorities(client: YouTrackClient, project_short_name: str) -> List[str]:
+    """List valid issue priorities for a project."""
+    # 1. Fetch projects to map shortName to ID
+    projects_data = client._request("GET", "api/admin/projects?fields=id,shortName")
+    
+    project_id = None
+    for project in projects_data:
+        if project["shortName"].upper() == project_short_name.upper():
+            project_id = project["id"]
+            break
+            
+    if not project_id:
+        raise YouTrackAPIError(f"Project with short ID '{project_short_name}' not found")
+        
+    # 2. Fetch project custom fields
+    url = f"api/admin/projects/{project_id}/customFields?fields=field(name),bundle(values(name))"
+    custom_fields = client._request("GET", url)
+    
+    # 3. Filter for the "Priority" custom field and extract its values
+    for cf in custom_fields:
+        field = cf.get("field")
+        if field and isinstance(field, dict) and field.get("name") == "Priority":
+            bundle = cf.get("bundle")
+            if bundle and isinstance(bundle, dict):
+                values = bundle.get("values")
+                if isinstance(values, list):
+                    return [val["name"] for val in values if isinstance(val, dict) and "name" in val]
+                    
+    return []
+
+
+
+def link_subtask(client: YouTrackClient, child_id: str, parent_id: str) -> None:
+    """Create a Subtask relationship making child_id a subtask of parent_id."""
+    client._request(
+        "POST",
+        "api/commands",
+        json={
+            "query": f"subtask of {parent_id}",
+            "issues": [{"idReadable": child_id}]
+        }
+    )
+
+
+def add_comment(client: YouTrackClient, issue_id: str, message: str) -> Comment:
+    """Append a comment to an issue."""
+    url = f"api/issues/{issue_id}/comments?fields=id,text,author(id,login,name),created"
+    payload = {"text": message}
+    data = client._request("POST", url, json=payload)
+    
+    author_name = ""
+    author_data = data.get("author")
+    if isinstance(author_data, dict):
+        author_name = author_data.get("login") or author_data.get("name") or ""
+    elif author_data:
+        author_name = str(author_data)
+        
+    return Comment(
+        id=data["id"],
+        text=data["text"],
+        author=author_name,
+        created=data.get("created", 0)
+    )
+
+
+@dataclass
+class IssueDetail:
+    id: str
+    id_readable: str
+    summary: str
+    description: Optional[str] = None
+    status: Optional[str] = None
+    assignee: Optional[str] = None
+    comments: List[Comment] = None
+
+
+def show_issue(client: YouTrackClient, issue_id: str) -> IssueDetail:
+    """Fetch a single issue including its description and its comments in one request."""
+    url = f"api/issues/{issue_id}?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created)"
+    data = client._request("GET", url)
+    
+    item_status = None
+    item_assignee = None
+    for field in data.get("customFields", []):
+        field_name = field.get("name")
+        field_value = field.get("value")
+        if field_value:
+            if field_name == "State":
+                if isinstance(field_value, dict):
+                    item_status = field_value.get("name")
+                else:
+                    item_status = str(field_value)
+            elif field_name == "Assignee":
+                if isinstance(field_value, dict):
+                    item_assignee = field_value.get("login") or field_value.get("name")
+                else:
+                    item_assignee = str(field_value)
+
+    comments = []
+    for comment_data in data.get("comments", []) or []:
+        author_name = ""
+        author_data = comment_data.get("author")
+        if isinstance(author_data, dict):
+            author_name = author_data.get("login") or author_data.get("name") or ""
+        elif author_data:
+            author_name = str(author_data)
+            
+        comments.append(
+            Comment(
+                id=comment_data["id"],
+                text=comment_data["text"],
+                author=author_name,
+                created=comment_data.get("created", 0)
+            )
+        )
+        
+    return IssueDetail(
+        id=data["id"],
+        id_readable=data["idReadable"],
+        summary=data["summary"],
+        description=data.get("description"),
+        status=item_status,
+        assignee=item_assignee,
+        comments=comments
+    )
+
+
+def update_issue(
+    client: YouTrackClient,
+    issue_id: str,
+    description: Optional[str] = None,
+    summary: Optional[str] = None,
+) -> Issue:
+    """Full-replace update of description and/or summary of an issue."""
+    if description is None and summary is None:
+        raise ValueError("At least one of description or summary must be provided")
+
+    payload = {}
+    if description is not None:
+        payload["description"] = description
+    if summary is not None:
+        payload["summary"] = summary
+
+    fields = "id,idReadable,summary,description,customFields(name,value(name,login))"
+    data = client._request(
+        "POST",
+        f"api/issues/{issue_id}?fields={fields}",
+        json=payload
+    )
+
+    item_status = None
+    item_assignee = None
+    for field in data.get("customFields", []):
+        field_name = field.get("name")
+        field_value = field.get("value")
+        if field_value:
+            if field_name == "State":
+                if isinstance(field_value, dict):
+                    item_status = field_value.get("name")
+                else:
+                    item_status = str(field_value)
+            elif field_name == "Assignee":
+                if isinstance(field_value, dict):
+                    item_assignee = field_value.get("login") or field_value.get("name")
+                else:
+                    item_assignee = str(field_value)
+
+    return Issue(
+        id=data["id"],
+        id_readable=data["idReadable"],
+        summary=data["summary"],
+        description=data.get("description"),
+        status=item_status,
+        assignee=item_assignee
+    )
+
+
+
+
 
 
 

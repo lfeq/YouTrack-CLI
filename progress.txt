@@ -82,7 +82,79 @@
 - Moved YouTrack issue `YTCLI-11` to "Fixed" state.
 
 2026-06-03: Completed Issue #15 (Test tagging issue creation).
-- Verified the issue `YTCLI-15` "Test tagging issue creation" created by Ixubot.
+- Verified the issue YTCLI-15 "Test tagging issue creation" created by Ixubot.
 - Confirmed all unit and CLI integration tests pass.
-- Moved YouTrack issue `YTCLI-15` to "Fixed" state.
+- Moved YouTrack issue YTCLI-15 to "Fixed" state.
 
+2026-06-03: Completed Issue #16 (Add issue link command and link_subtask core).
+- Implemented `link_subtask` in `src/youtrack_cli/issues.py` to link issues as parent/subtask using YouTrack's `/api/commands` endpoint.
+- Wired the `youtrack issue link` CLI command in `src/youtrack_cli/cli.py` to expose this capability.
+- Wrote unit and integration tests in `tests/test_issues.py` and `tests/test_cli.py` to cover successful linking, API error propagation, and Click options/arguments validation. All tests pass.
+- Moved YouTrack issue `YTCLI-16` to "Fixed" state.
+
+2026-06-03: Completed Issue #20 (Add --parent flag to issue create).
+- Extended the `create_issue` function in `src/youtrack_cli/issues.py` with an optional `parent` parameter.
+- Implemented logic in `create_issue` to call `link_subtask` if `parent` is provided, linking the newly created child issue under the parent Epic.
+- Added the `--parent` option to the `youtrack issue create` Click command in `src/youtrack_cli/cli.py` and passed it down to `create_issue`.
+- Wrote TDD unit and CLI integration tests in `tests/test_issues.py` and `tests/test_cli.py` to cover parent linking on success and API/linking failure. All tests pass.
+- Moved YouTrack issue `YTCLI-20` to "Fixed" state.
+
+2026-06-03: Completed Issue #17 (Add issue comment command for append-only progress notes).
+- Introduced the `Comment` dataclass to model comment attributes (id, text, author, created).
+- Implemented `add_comment` in `src/youtrack_cli/issues.py` to make a POST request to YouTrack's comment API, mapping nested `author` to a string representation.
+- Wired the `youtrack issue comment` CLI subcommand in `src/youtrack_cli/cli.py`.
+- Wrote TDD unit tests in `tests/test_issues.py` and integration tests in `tests/test_cli.py`. All tests pass.
+- Moved YouTrack issue `YTCLI-17` to "Fixed" state.
+
+2026-06-03: Completed Issue #21 (Add issue show command for detailed view of an issue with comments).
+- Introduced the `IssueDetail` dataclass carrying the issue fields plus a list of `Comment` objects.
+- Implemented `show_issue` function in `src/youtrack_cli/issues.py` to retrieve an issue and its comments in a single REST API request.
+- Implemented formatting functions `format_issue_detail_table` and `format_issue_detail_json` in `src/youtrack_cli/formatters.py`.
+- Registered `youtrack issue show` command in `src/youtrack_cli/cli.py` supporting both standard text output and `--json` formatting.
+- Wrote TDD unit tests in `tests/test_issues.py` and CLI integration tests in `tests/test_cli.py` covering successful retrieves (with and without comments), error propagation, and output formatting. All tests pass.
+- Moved YouTrack issue `YTCLI-21` to "Fixed" state.
+
+2026-06-03: Completed Issue #19 (Add --unresolved and --top filters to issue list).
+- Extended the `list_issues` function in `src/youtrack_cli/issues.py` to support `unresolved: bool` and `top: Optional[int]` parameters.
+- Implemented query assembly logic in `list_issues` to append `"#Unresolved"` to the YouTrack query string if `unresolved` is True.
+- Implemented pagination capping logic in `list_issues` to pass the `"$top"` parameter in the REST API request if `top` is greater than 0 (defaulting to 50), and omitting it if `top` is 0 or None.
+- Registered the `--unresolved` flag and `--top` (default 50) option under the `youtrack issue list` CLI command in `src/youtrack_cli/cli.py`.
+- Wrote TDD unit tests in `tests/test_issues.py` and CLI integration tests in `tests/test_cli.py` covering unresolved query merging, top-capping parameter inclusion/omission, Click option parsing, and CLI help menu updates. All tests pass.
+- Verified behavior against the live YouTrack instance.
+- Moved YouTrack issue `YTCLI-19` to "Fixed" state.
+
+2026-06-03: Completed Issue #18 (Add issue update command for description/summary full replacement).
+- Implemented `update_issue` in `src/youtrack_cli/issues.py` to full-replace an issue's description and/or summary via a POST request to `api/issues/{issue_id}`.
+- Handled early validation in `update_issue` to raise a `ValueError` if neither parameter is provided, making no API call.
+- Registered the `youtrack issue update` Click subcommand in `src/youtrack_cli/cli.py` with `--description` and `--summary` options, and raising a Click `UsageError` if both options are omitted.
+- Wrote TDD unit tests in `tests/test_issues.py` and CLI integration tests in `tests/test_cli.py` to assert correct requests, input validations, formatting/error handling, and Click configurations. All tests pass.
+- Moved YouTrack issue `YTCLI-18` to "Fixed" state.
+
+2026-06-03: Completed Issue #22 (Wire to-prd and to-issues skills to the PRD Epic workflow).
+- Updated `.claude/skills/to-prd/SKILL.md` to instruct the agent to publish the PRD as an issue of type `Epic` using the `youtrack issue create` command with `--type Epic` and `--description "<prd>"`, passing the `ready-for-agent` tag and emitting the new Epic ID.
+- Updated `.claude/skills/to-issues/SKILL.md` to accept the parent PRD Epic ID, fetch the PRD content with `youtrack issue show`, and pass `--parent <epic-id>` to the `youtrack issue create` command for all implementation issues.
+- Updated the local PRD `docs/prd/prd-publishing-and-agent-workflow-PRD.md` to mark all requirements/user stories as completed and moved it to `docs/prd/completed/`.
+- Moved YouTrack issue `YTCLI-22` to the "Fixed" state.
+- Note for the next person: The PRD is fully complete, and all issues are marked as completed. There are no remaining unresolved issues in YouTrack.
+
+2026-06-03: Completed Issue #26/#27 (Priority discovery command: issue priorities).
+- Verified and confirmed the full implementation of `list_issue_priorities` in `src/youtrack_cli/issues.py` (same two-step pattern as `list_issue_types`: project ID resolution then custom fields fetch filtering for "Priority").
+- Verified and confirmed `format_issue_priorities_table` and `format_issue_priorities_json` formatters in `src/youtrack_cli/formatters.py`.
+- Verified and confirmed `youtrack issue priorities --project <ID> [--json]` CLI command registered under the `issue` group in `src/youtrack_cli/cli.py`.
+- Updated `CONTEXT.md`: added `priorities` to the `issue` verb table; updated `--project` flag scope to include `issue priorities`.
+- All 117 tests pass. Live smoke test against YTCLI project returns: Show-stopper, Critical, Major, Normal, Minor.
+- Moved YouTrack issues `YTCLI-26` and `YTCLI-27` to "Fixed" state.
+- Note for the next person: Remaining open issues are YTCLI-28 (--version flag) and YTCLI-29 (README upgrade instructions) — both are small, standalone improvements.
+
+2026-06-03: Completed Issue #28 (Add --version flag to youtrack CLI).
+- Added `from importlib.metadata import version as _pkg_version` import to `src/youtrack_cli/cli.py`.
+- Decorated the `main` click Group with `@click.version_option(version=_pkg_version("youtrack-cli"), prog_name="youtrack")`.
+- Wrote TDD test `test_cli_version` in `tests/test_cli.py` asserting exit_code==0 and "0.2.0" in output.
+- Version is read dynamically from installed package metadata so it stays in sync with pyproject.toml automatically.
+- Note for the next person: Only YTCLI-29 (README upgrade instructions) remains open — it is purely documentation.
+
+2026-06-03: Completed Issue #29 (Add upgrade instructions to README).
+- Added "Updating" section to README.md immediately after "Installation" and before "Quickstart".
+- Section shows `pipx upgrade youtrack-cli` and `uv tool upgrade youtrack-cli` commands matching the style of the Installation section.
+- No other README content was changed per the issue's acceptance criteria.
+- Note for the next person: All issues are now resolved. The prd-publishing-and-agent-workflow PRD is fully complete. The README command reference table is outdated (missing link/comment/show/update/priorities commands) — a follow-up issue could be filed for that if needed.

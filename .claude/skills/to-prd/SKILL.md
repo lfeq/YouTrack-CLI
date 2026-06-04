@@ -17,7 +17,14 @@ A deep module (as opposed to a shallow module) is one which encapsulates a lot o
 
 Check with the user that these modules match their expectations. Check with the user which modules they want tests written for.
 
-3. Write the PRD using the template below, then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
+3. Write the PRD using the template below, then publish it to the project issue tracker as an Issue of type `Epic` whose description holds the PRD markdown. Use the `youtrack issue create` command with the `--type Epic` flag and pass the PRD content to `--description`. Apply the `ready-for-agent` tag using the `--tag` option (no need for additional triage).
+
+For example:
+```bash
+youtrack issue create --project <PROJECT_ID> --summary "<PRD Title>" --type Epic --description "$(cat prd.md)" --tag "ready-for-agent"
+```
+
+4. Emit the resulting Epic short ID (e.g. `YTCLI-50`) as the final output so that the next step (`to-issues`) can consume it.
 
 <prd-template>
 

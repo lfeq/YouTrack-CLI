@@ -1,6 +1,6 @@
 # PRD: Publishing PRDs to YouTrack and Agent-Friendly Issue Workflow
 
-> Status: Draft (saved locally — the publish-to-YouTrack capability this PRD describes does not exist yet, so the PRD itself cannot be published as an Epic until the feature lands).
+> Status: Completed
 
 ## Problem Statement
 
@@ -15,42 +15,43 @@ I drive this YouTrack CLI mostly through LLM agents (the `to-prd`, `to-issues`, 
 
 Extend the existing `issue` command surface so the full PRD lifecycle lives in YouTrack, modelled entirely on top of the existing **Issue** concept (no new entity or noun):
 
-- **Publish a PRD** as an **Issue of type `Epic`** whose description holds the PRD markdown — using the existing `issue create --type Epic --description ...` path.
-- **Link implementation issues** beneath the PRD Epic as a **Subtask** hierarchy, either at creation time (`issue create --parent <epic-id>`) or after the fact (`issue link <child> --parent <epic>`).
-- **Record progress safely** with `issue comment <id> --message "..."` — append-only, so an agent can never clobber the PRD body. Keep `issue update <id> [--description ...] [--summary ...]` as a deliberate full-replace escape hatch for genuinely revising the spec.
-- **Read back** the PRD body and all its notes together with `issue show <id>` (one call, `--json` for machines), so an agent can resume work from a single command.
-- **Keep agent context lean** on `issue list` with `--unresolved` (the "pending work" filter, mapped to YouTrack's `#Unresolved`) and `--top N` (a result cap defaulting to 50, with `--top 0` to opt out).
+- [x] **Publish a PRD** as an **Issue of type `Epic`** whose description holds the PRD markdown — using the existing `issue create --type Epic --description ...` path.
+- [x] **Link implementation issues** beneath the PRD Epic as a **Subtask** hierarchy, either at creation time (`issue create --parent <epic-id>`) or after the fact (`issue link <child> --parent <epic>`).
+- [x] **Record progress safely** with `issue comment <id> --message "..."` — append-only, so an agent can never clobber the PRD body. Keep `issue update <id> [--description ...] [--summary ...]` as a deliberate full-replace escape hatch for genuinely revising the spec. (Both comment and update commands completed).
+- [x] **Read back** the PRD body and all its notes together with `issue show <id>` (one call, `--json` for machines), so an agent can resume work from a single command.
+- [x] **Keep agent context lean** on `issue list` with `--unresolved` (the "pending work" filter, mapped to YouTrack's `#Unresolved`) and `--top N` (a result cap defaulting to 50, with `--top 0` to opt out).
 
 The skills are updated to use this: `to-prd` publishes the PRD as an Epic and emits its short ID; `to-issues` accepts that ID and passes `--parent` to each child it creates.
 
 ## User Stories
 
-1. As an agent running `to-prd`, I want to publish a PRD as an Epic issue, so that the PRD lives in YouTrack as a trackable parent work item.
-2. As an agent running `to-prd`, I want the PRD markdown to be stored verbatim in the Epic's description, so that the full spec is readable from YouTrack.
-3. As an agent running `to-prd`, I want the command to print back the new Epic's short ID (e.g. `YTCLI-50`), so that I can pass it to the next step.
-4. As a developer, I want a PRD to be an ordinary Issue of type `Epic` rather than a new entity, so that the CLI and domain model stay small.
-5. As an agent running `to-issues`, I want to create an implementation issue already linked under a PRD Epic in one command, so that I don't need a separate linking step per issue.
-6. As an agent, I want `issue create --parent YTCLI-50` to attach the new issue beneath the Epic as a subtask, so that the Epic shows its children and rolls up progress.
-7. As a developer, I want the parent relationship to be a true Subtask link (`parent for` / `subtask of`), not a loose "relates to", so that the hierarchy is real and visible on the board.
-8. As an agent, I want to link two pre-existing issues with `issue link <child> --parent <epic>`, so that I can attach issues to a PRD that was written after them, or re-parent an issue.
-9. As an agent working through a PRD, I want to append a progress note with `issue comment <id> --message "..."`, so that I can record what was done without touching the PRD body.
-10. As a developer, I want comments to be append-only, so that a faulty agent can never overwrite or delete the PRD spec while recording progress.
-11. As an agent, I want each comment to be timestamped and attributed by YouTrack, so that the note history is meaningful when read back.
-12. As an agent that genuinely needs to revise the PRD spec, I want `issue update <id> --description "..."`, so that I can replace the PRD body deliberately.
-13. As an agent, I want `issue update <id> --summary "..."`, so that I can correct an issue or PRD title.
-14. As a developer, I want `issue update` to be a full replace (YouTrack-native semantics), so that the behaviour is predictable and not a fragile partial merge.
-15. As an agent resuming work on a PRD, I want `issue show <id>` to return the Epic's description plus all its comments in one call, so that I can reconstruct context cheaply.
-16. As an agent, I want `issue show <id> --json` to emit a machine-readable view of the issue, its description, and its comments, so that I can parse it programmatically.
-17. As a human, I want `issue show <id>` to print a readable layout of the issue with its notes, so that I can inspect any issue's full detail from the terminal.
-18. As an agent listing issues on a large project, I want `issue list --unresolved` to return only pending work, so that resolved issues don't fill my context.
-19. As a developer, I want `--unresolved` to map to YouTrack's `#Unresolved` rather than hard-coded state names, so that it stays correct across the five pending states (`Submitted`, `Open`, `In Progress`, `To be discussed`, `Reopened`) and any future states.
-20. As an agent, I want `issue list --top 50` (and a default cap of 50) to bound the number of rows returned, so that an unfiltered list never floods my context with hundreds of issues.
-21. As an agent that really does want everything, I want `issue list --top 0` to remove the cap, so that I can opt out when I need the full set.
-22. As an agent, I want `--unresolved` and `--top` to combine with the existing `--tag`, `--status`, `--assignee`, and `--query` filters, so that I can express precise queries like "pending issues assigned to me, capped at 20".
-23. As a developer, I want all new read commands to support `--json`, so that the CLI stays scriptable and agent-friendly.
-24. As a developer, I want new commands to surface YouTrack API errors as-is (no client-side pre-validation), so that error handling stays consistent with the rest of the CLI.
-25. As an agent, I want `issue link` and `issue comment` to confirm success in plain language (e.g. "Linked YTCLI-43 under YTCLI-50"), so that I can verify the action without a follow-up call.
-26. As a user reading help, I want `issue link`, `issue comment`, `issue update`, and `issue show` to appear in `youtrack issue --help`, so that the new capabilities are discoverable.
+1. [x] As an agent running `to-prd`, I want to publish a PRD as an Epic issue, so that the PRD lives in YouTrack as a trackable parent work item.
+2. [x] As an agent running `to-prd`, I want the PRD markdown to be stored verbatim in the Epic's description, so that the full spec is readable from YouTrack.
+3. [x] As an agent running `to-prd`, I want the command to print back the new Epic's short ID (e.g. `YTCLI-50`), so that I can pass it to the next step.
+4. [x] As a developer, I want a PRD to be an ordinary Issue of type `Epic` rather than a new entity, so that the CLI and domain model stay small.
+5. [x] As an agent running `to-issues`, I want to create an implementation issue already linked under a PRD Epic in one command, so that I don't need a separate linking step per issue.
+6. [x] As an agent, I want `issue create --parent YTCLI-50` to attach the new issue beneath the Epic as a subtask, so that the Epic shows its children and rolls up progress.
+7. [x] As a developer, I want the parent relationship to be a true Subtask link (`parent for` / `subtask of`), not a loose "relates to", so that the hierarchy is real and visible on the board.
+8. [x] As an agent, I want to link two pre-existing issues with `issue link <child> --parent <epic>`, so that I can attach issues to a PRD that was written after them, or re-parent an issue.
+9. [x] As an agent working through a PRD, I want to append a progress note with `issue comment <id> --message "..."`, so that I can record what was done without touching the PRD body.
+10. [x] As a developer, I want comments to be append-only, so that a faulty agent can never overwrite or delete the PRD spec while recording progress.
+11. [x] As an agent, I want each comment to be timestamped and attributed by YouTrack, so that the note history is meaningful when read back.
+12. [x] As an agent that genuinely needs to revise the PRD spec, I want `issue update <id> --description "..."`, so that I can replace the PRD body deliberately.
+13. [x] As an agent, I want `issue update <id> --summary "..."`, so that I can correct an issue or PRD title.
+14. [x] As a developer, I want `issue update` to be a full replace (YouTrack-native semantics), so that the behaviour is predictable and not a fragile partial merge.
+15. [x] As an agent resuming work on a PRD, I want `issue show <id>` to return the Epic's description plus all its comments in one call, so that I can reconstruct context cheaply.
+16. [x] As an agent, I want `issue show <id> --json` to emit a machine-readable view of the issue, its description, and its comments, so that I can parse it programmatically.
+17. [x] As a human, I want `issue show <id>` to print a readable layout of the issue with its notes, so that I can inspect any issue's full detail from the terminal.
+18. [x] As an agent listing issues on a large project, I want `issue list --unresolved` to return only pending work, so that resolved issues don't fill my context.
+19. [x] As a developer, I want `--unresolved` to map to YouTrack's `#Unresolved` rather than hard-coded state names, so that it stays correct across the five pending states (`Submitted`, `Open`, `In Progress`, `To be discussed`, `Reopened`) and any future states.
+20. [x] As an agent, I want `issue list --top 50` (and a default cap of 50) to bound the number of rows returned, so that an unfiltered list never floods my context with hundreds of issues.
+21. [x] As an agent that really does want everything, I want `issue list --top 0` to remove the cap, so that I can opt out when I need the full set.
+22. [x] As an agent, I want `--unresolved` and `--top` to combine with the existing `--tag`, `--status`, `--assignee`, and `--query` filters, so that I can express precise queries like "pending issues assigned to me, capped at 20".
+23. [x] As a developer, I want all new read commands to support `--json`, so that the CLI stays scriptable and agent-friendly.
+24. [x] As a developer, I want new commands to surface YouTrack API errors as-is (no client-side pre-validation), so that error handling stays consistent with the rest of the CLI (completed for `issue link`, `issue comment`, `issue show`, and `issue update`).
+25. [x] As an agent, I want modifying commands (`issue link`, `issue comment`, `issue update`) to confirm success in plain language (e.g. "Linked YTCLI-43 under YTCLI-50"), so that I can verify the action without a follow-up call (completed).
+26. [x] As a user reading help, I want `issue link`, `issue comment`, `issue update`, and `issue show` to appear in `youtrack issue --help`, so that the new capabilities are discoverable (completed).
+
 
 ## Implementation Decisions
 

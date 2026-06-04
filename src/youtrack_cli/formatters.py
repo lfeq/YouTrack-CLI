@@ -120,5 +120,39 @@ def format_issue_types_json(types: List[str]) -> str:
     return json.dumps(types, indent=2)
 
 
+def format_issue_detail_table(issue) -> str:
+    """Format an issue's details and comments into a human-readable text block."""
+    lines = [
+        f"ID: {issue.id_readable}",
+        f"Summary: {issue.summary}",
+        f"Status: {issue.status or ''}",
+        f"Assignee: {issue.assignee or ''}",
+        "",
+        "Description:",
+        issue.description or "",
+        ""
+    ]
+    
+    lines.append("Comments:")
+    if not issue.comments:
+        lines.append("No comments.")
+    else:
+        import datetime
+        for c in issue.comments:
+            dt = datetime.datetime.fromtimestamp(c.created / 1000.0, tz=datetime.timezone.utc)
+            formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')
+            lines.append(f"[{c.author} @ {formatted_time}]")
+            lines.append(c.text)
+            lines.append("")
+            
+    return "\n".join(lines).rstrip()
+
+
+def format_issue_detail_json(issue) -> str:
+    """Format an issue's details and comments into a formatted JSON string."""
+    return json.dumps(asdict(issue), indent=2)
+
+
+
 
 

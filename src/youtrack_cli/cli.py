@@ -72,8 +72,19 @@ def issue_group():
 @click.option("--priority", help="Optional issue priority (e.g. Critical, Major, Normal, Minor)")
 @click.option("--type", "type_name", help="Optional issue type (e.g. Bug, Feature, Task)")
 @click.option("--tag", "tags", multiple=True, help="Optional tag name (can be repeated)")
+@click.option("--parent", help="Optional parent Epic ID (e.g. YTCLI-50)")
 @click.option("--json", "json_output", is_flag=True, help="Emit JSON instead of human-readable confirmation")
-def issue_create(project: str, summary: str, description: str | None, assignee: str | None, priority: str | None, type_name: str | None, tags: tuple[str], json_output: bool):
+def issue_create(
+    project: str,
+    summary: str,
+    description: str | None,
+    assignee: str | None,
+    priority: str | None,
+    type_name: str | None,
+    tags: tuple[str],
+    parent: str | None,
+    json_output: bool,
+):
     """Create a new issue."""
     try:
         from youtrack_cli.client import get_client, YouTrackAPIError
@@ -89,7 +100,8 @@ def issue_create(project: str, summary: str, description: str | None, assignee: 
             assignee=assignee,
             priority=priority,
             type_name=type_name,
-            tags=list(tags) if tags else None
+            tags=list(tags) if tags else None,
+            parent=parent,
         )
         if json_output:
             click.echo(format_issue_json(issue))
@@ -105,8 +117,19 @@ def issue_create(project: str, summary: str, description: str | None, assignee: 
 @click.option("--status", help="Filter by status/state name")
 @click.option("--assignee", help="Filter by assignee username")
 @click.option("--query", "raw_query", help="Raw YouTrack query string to merge")
+@click.option("--unresolved", is_flag=True, help="Restrict to unresolved (pending) issues")
+@click.option("--top", type=int, default=50, help="Cap the number of issues returned (default 50; 0 for no cap)")
 @click.option("--json", "json_output", is_flag=True, help="Emit JSON instead of human-readable output")
-def issue_list(project: str, tag: str | None, status: str | None, assignee: str | None, raw_query: str | None, json_output: bool):
+def issue_list(
+    project: str,
+    tag: str | None,
+    status: str | None,
+    assignee: str | None,
+    raw_query: str | None,
+    unresolved: bool,
+    top: int,
+    json_output: bool,
+):
     """List issues in a project with filtering."""
     try:
         from youtrack_cli.client import get_client, YouTrackAPIError
@@ -120,7 +143,9 @@ def issue_list(project: str, tag: str | None, status: str | None, assignee: str 
             tag=tag,
             status=status,
             assignee=assignee,
-            query=raw_query
+            query=raw_query,
+            unresolved=unresolved,
+            top=top,
         )
         if json_output:
             click.echo(format_issues_json(issues))
@@ -186,8 +211,84 @@ def issue_types(project: str, json_output: bool):
         sys.exit(1)
 
 
+@issue_group.command(name="link")
+@click.argument("child_id")
+@click.option("--parent", "parent_id", required=True, help="Parent Epic ID (e.g. YTCLI-50)")
+def issue_link(child_id: str, parent_id: str):
+    """Link two issues as parent/subtask."""
+    try:
+        from youtrack_cli.client import get_client, YouTrackAPIError
+        from youtrack_cli.issues import link_subtask
+
+        client = get_client()
+        link_subtask(client, child_id, parent_id)
+        click.echo(f"Linked {child_id} under {parent_id}")
+    except (ConfigError, YouTrackAPIError) as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@issue_group.command(name="comment")
+@click.argument("issue_id")
+@click.option("--message", required=True, help="Comment body to append to an issue")
+def issue_comment(issue_id: str, message: str):
+    """Append a comment to an issue."""
+    try:
+        from youtrack_cli.client import get_client, YouTrackAPIError
+        from youtrack_cli.issues import add_comment
+
+        client = get_client()
+        add_comment(client, issue_id, message)
+        click.echo(f"Added comment to {issue_id}")
+    except (ConfigError, YouTrackAPIError) as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@issue_group.command(name="show")
+@click.argument("issue_id")
+@click.option("--json", "json_output", is_flag=True, help="Emit JSON instead of human-readable output")
+def issue_show(issue_id: str, json_output: bool):
+    """Show details of a single issue, including comments."""
+    try:
+        from youtrack_cli.client import get_client, YouTrackAPIError
+        from youtrack_cli.issues import show_issue
+        from youtrack_cli.formatters import format_issue_detail_table, format_issue_detail_json
+
+        client = get_client()
+        issue_detail = show_issue(client, issue_id)
+        if json_output:
+            click.echo(format_issue_detail_json(issue_detail))
+        else:
+            click.echo(format_issue_detail_table(issue_detail))
+    except (ConfigError, YouTrackAPIError) as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@issue_group.command(name="update")
+@click.argument("issue_id")
+@click.option("--description", help="New description for full replacement")
+@click.option("--summary", help="New summary for full replacement")
+def issue_update(issue_id: str, description: str | None, summary: str | None):
+    """Update description and/or summary of an issue."""
+    if description is None and summary is None:
+        raise click.UsageError("At least one of --description or --summary must be provided")
+    try:
+        from youtrack_cli.client import get_client, YouTrackAPIError
+        from youtrack_cli.issues import update_issue
+
+        client = get_client()
+        issue = update_issue(client, issue_id, description=description, summary=summary)
+        click.echo(f"Updated issue {issue.id_readable}")
+    except (ConfigError, YouTrackAPIError) as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
 @main.group(name="tag")
 def tag_group():
+
 
     """Manage YouTrack tags."""
     pass

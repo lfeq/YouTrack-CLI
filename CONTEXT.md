@@ -16,6 +16,14 @@ _Avoid_: Workspace, board, space
 The current workflow state of an issue (e.g., `Open`, `In Progress`, `Fixed`). Transitions are enforced by YouTrack; the CLI does not pre-validate them.
 _Avoid_: State, stage, column
 
+**Priority**:
+An ordered enum custom field on an **Issue** (`Show-stopper`, `Critical`, `Major`, `Normal`, `Minor` — highest first). Set at creation with `--priority` and discoverable per project via `issue priorities`. `issue list` orders results by Priority so the most important pending work surfaces first. _Note_: YouTrack sorts by bundle ordinal, so "highest first" is `sort by: priority asc`.
+_Avoid_: Severity, importance, rank
+
+**Pending**:
+The set of **Issues** whose **Status** is unresolved (`isResolved` false) — `Submitted`, `Open`, `In Progress`, `To be discussed`, `Reopened`. This is the default scope of `issue list`; `--all` widens it to include resolved issues.
+_Avoid_: Open (ambiguous with the `Open` state), active, todo
+
 **Tag**:
 A label attached to an issue for cross-project categorisation. Tags must exist before they can be applied — the CLI does not auto-create them on assignment.
 _Avoid_: Label, category
@@ -65,7 +73,8 @@ Commands follow a **noun-first** pattern: `youtrack <noun> <verb> [args] [flags]
 | `--parent` | `issue create`, `issue link` | Parent Epic short ID; creates a subtask link from the child to the Epic |
 | `--message` | `issue comment` | Comment body to append to an issue |
 | `--description` / `--summary` | `issue update` | New PRD body / title (full replace) |
-| `--unresolved` | `issue list` | Restrict to unresolved (pending) issues via `#Unresolved` |
+| `--all` | `issue list` | Include resolved issues (removes the default `#Unresolved` filter) |
+| `--unresolved` | `issue list` | No-op alias kept for compatibility — pending-only is now the default |
 | `--top` | `issue list` | Cap the number of issues returned (default 50; `--top 0` for no cap) |
 | `--query` | `issue list` | Raw YouTrack query string (merged with other filters) |
 | `--json` | All read commands | Emit JSON instead of human-readable output |
@@ -93,6 +102,6 @@ youtrack issue tag YTCLI-<n> --tag "AFK"
 - **Output**: Human-readable text/tables by default; `--json` flag for scripting.
 - **Error handling**: API errors are surfaced as-is to the user. No client-side pre-validation of workflow transitions or tag existence (except tag assignment, which fails if the tag doesn't exist).
 - **Profiles**: Single configured instance only. Multi-profile support deferred.
-- **Filtering**: `issue list` supports specific flags (`--tag`, `--status`, `--assignee`, `--unresolved`) and a `--query` escape hatch for raw YouTrack query language. All can be combined. `--unresolved` maps to YouTrack's `#Unresolved` (any State where `isResolved` is false) rather than hard-coding state names, because "pending" spans several states (`Submitted`, `Open`, `In Progress`, `To be discussed`, `Reopened`).
-- **Agent-safe listing**: `issue list` caps results at `--top` (default 50) so an unfiltered call against a large project never floods an LLM agent's context with hundreds of rows. `--top 0` opts out of the cap.
+- **Filtering**: `issue list` supports specific flags (`--tag`, `--status`, `--assignee`, `--all`) and a `--query` escape hatch for raw YouTrack query language. All can be combined. "Pending" maps to YouTrack's `#Unresolved` (any State where `isResolved` is false) rather than hard-coding state names, because it spans several states (`Submitted`, `Open`, `In Progress`, `To be discussed`, `Reopened`).
+- **Agent-safe listing**: `issue list` is tuned for an agent asking "what should I work on next?". By default it (1) filters to pending work (`#Unresolved`), (2) sorts `sort by: priority asc, State asc` so the highest-priority, freshest (`Submitted`-first) issues sit at the top, and (3) caps results at `--top` (default 50) so a call against a large project never floods the agent's context. The sort is server-side so the cap trims *after* ordering; `--top 0` opts out of the cap. `--all` removes the pending filter; passing `--status` or a raw `--query` also suppresses the default pending filter (and a `sort by` inside `--query` suppresses the default sort). Priority is shown as a `PRIORITY` column and in `--json`. The direction is `asc` because YouTrack orders enum fields by bundle ordinal and `Show-stopper` is ordinal 0. See `docs/adr/0004`.
 - **PRD workflow**: A PRD is published as an Epic issue (`issue create --type Epic --description <prd>`). Implementation issues are linked beneath it with `--parent <epic-id>` (at creation) or `issue link` (after the fact), forming a subtask hierarchy. Progress is recorded with `issue comment` (append-only, the safe default); the PRD body itself is revised with `issue update`. `issue show` returns the Epic's body and all comments together so an agent can resume work from a single call. See `docs/adr/0001`–`0003`.

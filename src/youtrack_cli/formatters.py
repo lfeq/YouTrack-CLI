@@ -40,29 +40,33 @@ def format_issues_table(issues: list) -> str:
     if not issues:
         return "No issues found."
         
-    headers = ["ID", "SUMMARY", "STATUS", "ASSIGNEE"]
+    headers = ["ID", "PRIORITY", "STATUS", "SUMMARY", "ASSIGNEE"]
     col_widths = [len(h) for h in headers]
     
     rows = []
     for issue in issues:
         issue_id = issue.id_readable or ""
-        summary = issue.summary or ""
+        priority = getattr(issue, "priority", "") or ""
         status = issue.status or ""
+        summary = issue.summary or ""
+        if getattr(issue, "blocked", False):
+            summary = f"[BLOCKED] {summary}"
         assignee = issue.assignee or ""
         
         col_widths[0] = max(col_widths[0], len(issue_id))
-        col_widths[1] = max(col_widths[1], len(summary))
+        col_widths[1] = max(col_widths[1], len(priority))
         col_widths[2] = max(col_widths[2], len(status))
-        col_widths[3] = max(col_widths[3], len(assignee))
+        col_widths[3] = max(col_widths[3], len(summary))
+        col_widths[4] = max(col_widths[4], len(assignee))
         
-        rows.append((issue_id, summary, status, assignee))
+        rows.append((issue_id, priority, status, summary, assignee))
         
     lines = [
-        f"{headers[0]:<{col_widths[0]}}  {headers[1]:<{col_widths[1]}}  {headers[2]:<{col_widths[2]}}  {headers[3]:<{col_widths[3]}}",
-        f"{'-' * col_widths[0]}  {'-' * col_widths[1]}  {'-' * col_widths[2]}  {'-' * col_widths[3]}"
+        f"{headers[0]:<{col_widths[0]}}  {headers[1]:<{col_widths[1]}}  {headers[2]:<{col_widths[2]}}  {headers[3]:<{col_widths[3]}}  {headers[4]:<{col_widths[4]}}",
+        f"{'-' * col_widths[0]}  {'-' * col_widths[1]}  {'-' * col_widths[2]}  {'-' * col_widths[3]}  {'-' * col_widths[4]}"
     ]
     for row in rows:
-        lines.append(f"{row[0]:<{col_widths[0]}}  {row[1]:<{col_widths[1]}}  {row[2]:<{col_widths[2]}}  {row[3]:<{col_widths[3]}}")
+        lines.append(f"{row[0]:<{col_widths[0]}}  {row[1]:<{col_widths[1]}}  {row[2]:<{col_widths[2]}}  {row[3]:<{col_widths[3]}}  {row[4]:<{col_widths[4]}}")
         
     return "\n".join(lines)
 
@@ -159,6 +163,21 @@ def format_issue_detail_table(issue) -> str:
         ""
     ]
     
+    if getattr(issue, "depends_on", None):
+        lines.append("Depends on:")
+        for dep in issue.depends_on:
+            resolved_str = "[resolved]" if dep.get("resolved") else "[unresolved]"
+            blocking_str = " (BLOCKING)" if not dep.get("resolved") else ""
+            lines.append(f"- {dep['id']}: {dep['summary']} {resolved_str}{blocking_str}")
+        lines.append("")
+
+    if getattr(issue, "required_for", None):
+        lines.append("Required for:")
+        for req in issue.required_for:
+            resolved_str = "[resolved]" if req.get("resolved") else "[unresolved]"
+            lines.append(f"- {req['id']}: {req['summary']} {resolved_str}")
+        lines.append("")
+
     lines.append("Comments:")
     if not issue.comments:
         lines.append("No comments.")

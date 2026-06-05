@@ -120,6 +120,7 @@ def issue_create(
 @click.option("--assignee", help="Filter by assignee username")
 @click.option("--query", "raw_query", help="Raw YouTrack query string to merge")
 @click.option("--unresolved", is_flag=True, help="Restrict to unresolved (pending) issues")
+@click.option("--all", "all_issues", is_flag=True, help="Include resolved issues")
 @click.option("--top", type=int, default=50, help="Cap the number of issues returned (default 50; 0 for no cap)")
 @click.option("--json", "json_output", is_flag=True, help="Emit JSON instead of human-readable output")
 def issue_list(
@@ -129,6 +130,7 @@ def issue_list(
     assignee: str | None,
     raw_query: str | None,
     unresolved: bool,
+    all_issues: bool,
     top: int,
     json_output: bool,
 ):
@@ -148,6 +150,7 @@ def issue_list(
             query=raw_query,
             unresolved=unresolved,
             top=top,
+            all=all_issues,
         )
         if json_output:
             click.echo(format_issues_json(issues))
@@ -250,6 +253,29 @@ def issue_link(child_id: str, parent_id: str):
     except (ConfigError, YouTrackAPIError) as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+
+
+@issue_group.command(name="depend")
+@click.argument("issue_id")
+@click.option("--on", "target_id", required=True, help="Target issue ID this issue depends on (e.g. YTCLI-42)")
+@click.option("--remove", is_flag=True, help="Remove the dependency instead of creating it")
+def issue_depend(issue_id: str, target_id: str, remove: bool):
+    """Create or remove a dependency link between two issues."""
+    try:
+        from youtrack_cli.client import get_client, YouTrackAPIError
+        from youtrack_cli.issues import add_dependency, remove_dependency
+
+        client = get_client()
+        if remove:
+            remove_dependency(client, issue_id, target_id)
+            click.echo(f"Removed dependency link: {issue_id} no longer depends on {target_id}")
+        else:
+            add_dependency(client, issue_id, target_id)
+            click.echo(f"Created dependency link: {issue_id} depends on {target_id}")
+    except (ConfigError, YouTrackAPIError) as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
 
 
 @issue_group.command(name="comment")

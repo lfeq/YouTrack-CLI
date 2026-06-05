@@ -158,3 +158,52 @@
 - Section shows `pipx upgrade youtrack-cli` and `uv tool upgrade youtrack-cli` commands matching the style of the Installation section.
 - No other README content was changed per the issue's acceptance criteria.
 - Note for the next person: All issues are now resolved. The prd-publishing-and-agent-workflow PRD is fully complete. The README command reference table is outdated (missing link/comment/show/update/priorities commands) — a follow-up issue could be filed for that if needed.
+
+2026-06-04: Completed Issue YTCLI-31 (Show Priority in issue list output).
+- Added `priority` field to the `Issue` dataclass.
+- Updated `list_issues` and `move_issue` to parse the `Priority` custom field from the REST API responses.
+- Reordered and updated the human-readable `issue list` output format in `format_issues_table` to include a `PRIORITY` column between `ID` and `STATUS` (`ID | PRIORITY | STATUS | SUMMARY | ASSIGNEE`).
+- Ensured that `priority` is automatically included in JSON responses when `--json` is requested.
+- Wrote TDD tests in `tests/test_issues.py` and `tests/test_cli.py` to cover priority parsing, table formatting, and JSON serialisation. All 119 tests pass.
+- Moved YouTrack issue `YTCLI-31` to "Fixed" state.
+- Note for the next person: Issue YTCLI-31 is complete. The next feature is YTCLI-32 (Pending-by-default issue listing with priority ordering), which implements the core query generation rules and default filter/sort behavior.
+
+2026-06-04: Completed Issue YTCLI-32 (Pending-by-default issue listing with priority ordering).
+- Created pure function `build_issue_list_query()` in `src/youtrack_cli/issues.py` to centralize all YouTrack search query generation logic.
+- Updated `list_issues()` to call `build_issue_list_query()` and accept the `all: bool` parameter.
+- Added `--all` option to `youtrack issue list` click CLI command in `src/youtrack_cli/cli.py` to allow including resolved issues in listing results.
+- Retained `--unresolved` option as a harmless no-op for backward compatibility.
+- Updated query builder to suppress default `#Unresolved` filter when `--all`, status, or a raw query is provided, and default sorting when the raw query has custom sorting.
+- Wrote 7 unit tests covering default, --all, status, raw query, and parameter composition in `tests/test_issues.py` and updated/added integration tests in `tests/test_cli.py`. All 128 tests pass.
+- Moved YouTrack issue `YTCLI-32` to "Fixed" state.
+- Note for the next person: Issue YTCLI-32 is complete. The next feature is YTCLI-33 (Update README with full command reference) to document all the commands, flags, and new issue listing behavior in the README.
+
+2026-06-04: Completed Issue YTCLI-33 (Update README with full command reference).
+- Added global options (`--version`, `--help`) to the README.
+- Documented all noun/verb commands: `login`, `project create|list`, `issue create|list|show|move|tag|link|comment|update|types|priorities`, `tag create|list` with their exact descriptions, options, parameters, and examples.
+- Documented `issue list` smart defaults: pending-only by default (using `#Unresolved`), priority-ordering (`priority asc, State asc`), server-side sorting, default suppression behaviors (`--all`, `--status`, raw `--query`), and column/json structure.
+- Documented the repeatable `--tag` option and `--priority`/`--parent` flags on `issue create`.
+- Confirmed vocabulary matches glossaries in CONTEXT.md (e.g. Issue, Project, Status, Priority, Pending, Tag, Epic, Subtask link, Comment).
+- Moved YouTrack issue `YTCLI-33` to "Fixed" state.
+- Note for the next person: Issue YTCLI-33 is complete. The next and final task in the PRD Epic is YTCLI-34 (Bump version to 1.0.0). Since this is the last task, the PRD itself is now ready to be marked complete once YTCLI-34 is finished.
+
+2026-06-04: Completed Issue YTCLI-34 (Bump version to 1.0.0).
+- Bumped version to 1.0.0 in `pyproject.toml` and updated `uv.lock` via `uv sync`.
+- Verified that all 128 unit/integration tests pass.
+- Moved the completed PRD file to `docs/prd/completed/priority-ordered-issue-listing-PRD.md`.
+- Moved YouTrack issue `YTCLI-34` and the parent Epic `YTCLI-30` to "Fixed" state.
+- Note for the next person: The priority-ordered issue listing Epic/PRD is fully complete. The next feature to implement is YTCLI-35 (Native dependency links between issues), using the drafted `docs/prd/native-dependency-links-PRD.md` and `docs/adr/0005-native-dependency-links.md`.
+
+2026-06-04: Completed Issue YTCLI-35 (Native dependency links between issues).
+- Implemented `add_dependency` and `remove_dependency` functions in `src/youtrack_cli/issues.py` sending `depends on` / `remove depends on` commands via POST `api/commands`.
+- Implemented `parse_dependency_links` pure function in `src/youtrack_cli/issues.py` to parse raw `links` field from YouTrack REST API, extracting `depends_on`, `required_for`, and derived `blocked` status.
+- Wired `youtrack issue depend <issue_id> --on <target_id> [--remove]` Click CLI command in `src/youtrack_cli/cli.py`.
+- Updated `list_issues` to fetch and parse the `links` field, setting `blocked` on the `Issue` dataclass.
+- Updated `format_issues_table` in `src/youtrack_cli/formatters.py` to prepend `[BLOCKED]` to summary of blocked issues.
+- Updated `show_issue` to request `links` field and populate `depends_on` and `required_for` fields on `IssueDetail` dataclass.
+- Updated `format_issue_detail_table` to render `Depends on:` and `Required for:` sections, highlighting blocking unresolved dependencies as `(BLOCKING)`.
+- Updated `tests/test_issues.py` and `tests/test_cli.py` with comprehensive unit and CLI integration tests for dependencies. All 141 tests pass.
+- Documented `issue depend` command in `README.md` and updated `docs/prd/completed/native-dependency-links-PRD.md`.
+- Moved YouTrack issues `YTCLI-36`, `YTCLI-37`, `YTCLI-38`, and Epic `YTCLI-35` to "Fixed" status.
+- Note for the next person: The native dependency links PRD is fully complete. All issues in the project are resolved. There are no remaining open issues.
+

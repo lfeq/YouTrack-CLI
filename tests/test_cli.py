@@ -16,7 +16,7 @@ def test_cli_version():
     runner = CliRunner()
     result = runner.invoke(main, ["--version"])
     assert result.exit_code == 0
-    assert "0.2.0" in result.output
+    assert "1.0.0" in result.output
 
 def test_cli_login_success(tmp_path):
     runner = CliRunner()
@@ -369,24 +369,30 @@ def test_cli_issue_list_success(tmp_path):
                 "summary": "Fix login bug",
                 "customFields": [
                     {"name": "State", "value": {"name": "In Progress"}},
-                    {"name": "Assignee", "value": {"login": "john.doe"}}
+                    {"name": "Assignee", "value": {"login": "john.doe"}},
+                    {"name": "Priority", "value": {"name": "Critical"}}
                 ]
             }
         ]
     )
     
+    result = runner.invoke(main, ["issue", ["list", "--project", "DEMO"] if hasattr(main, "list") else ["list", "--project", "DEMO"]], env=env)
+    # wait, the original was: result = runner.invoke(main, ["issue", "list", "--project", "DEMO"], env=env)
     result = runner.invoke(main, ["issue", "list", "--project", "DEMO"], env=env)
     assert result.exit_code == 0
     assert "ID" in result.output
-    assert "SUMMARY" in result.output
+    assert "PRIORITY" in result.output
     assert "STATUS" in result.output
+    assert "SUMMARY" in result.output
     assert "ASSIGNEE" in result.output
     assert "DEMO-42" in result.output
+    assert "Critical" in result.output
     assert "Fix login bug" in result.output
     assert "In Progress" in result.output
     assert "john.doe" in result.output
     assert mock_route.called
-    assert "query=project%3A+DEMO" in str(mock_route.calls.last.request.url)
+    from urllib.parse import unquote_plus
+    assert "query=project: DEMO #Unresolved sort by: priority asc, State asc" in unquote_plus(str(mock_route.calls.last.request.url))
 
 @respx.mock
 def test_cli_issue_list_json(tmp_path):
@@ -402,7 +408,9 @@ def test_cli_issue_list_json(tmp_path):
                 "id": "2-100",
                 "idReadable": "DEMO-42",
                 "summary": "Fix login bug",
-                "customFields": []
+                "customFields": [
+                    {"name": "Priority", "value": {"name": "Critical"}}
+                ]
             }
         ]
     )
@@ -413,6 +421,7 @@ def test_cli_issue_list_json(tmp_path):
     parsed = json.loads(result.output)
     assert len(parsed) == 1
     assert parsed[0]["id_readable"] == "DEMO-42"
+    assert parsed[0]["priority"] == "Critical"
 
 @respx.mock
 def test_cli_issue_list_unresolved(tmp_path):
@@ -429,9 +438,30 @@ def test_cli_issue_list_unresolved(tmp_path):
     result = runner.invoke(main, ["issue", "list", "--project", "DEMO", "--unresolved"], env=env)
     assert result.exit_code == 0
     assert mock_route.called
-    url_str = str(mock_route.calls.last.request.url)
-    assert "query=project%3A+DEMO+%23Unresolved" in url_str
-    assert "%24top=50" in url_str
+    from urllib.parse import unquote_plus
+    url_str = unquote_plus(str(mock_route.calls.last.request.url))
+    assert "query=project: DEMO #Unresolved sort by: priority asc, State asc" in url_str
+    assert "$top=50" in url_str
+
+@respx.mock
+def test_cli_issue_list_all(tmp_path):
+    runner = CliRunner()
+    config_dir = tmp_path / "youtrack-cli"
+    save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
+    env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
+    
+    mock_route = respx.get("https://example.youtrack.cloud/api/issues").respond(
+        status_code=200,
+        json=[]
+    )
+    
+    result = runner.invoke(main, ["issue", "list", "--project", "DEMO", "--all"], env=env)
+    assert result.exit_code == 0
+    assert mock_route.called
+    from urllib.parse import unquote_plus
+    url_str = unquote_plus(str(mock_route.calls.last.request.url))
+    assert "query=project: DEMO sort by: priority asc, State asc" in url_str
+    assert "$top=50" in url_str
 
 @respx.mock
 def test_cli_issue_list_top_custom(tmp_path):
@@ -448,8 +478,9 @@ def test_cli_issue_list_top_custom(tmp_path):
     result = runner.invoke(main, ["issue", "list", "--project", "DEMO", "--top", "20"], env=env)
     assert result.exit_code == 0
     assert mock_route.called
-    url_str = str(mock_route.calls.last.request.url)
-    assert "%24top=20" in url_str
+    from urllib.parse import unquote
+    url_str = unquote(str(mock_route.calls.last.request.url))
+    assert "$top=20" in url_str
 
 @respx.mock
 def test_cli_issue_list_top_zero(tmp_path):
@@ -466,8 +497,9 @@ def test_cli_issue_list_top_zero(tmp_path):
     result = runner.invoke(main, ["issue", "list", "--project", "DEMO", "--top", "0"], env=env)
     assert result.exit_code == 0
     assert mock_route.called
-    url_str = str(mock_route.calls.last.request.url)
-    assert "%24top" not in url_str
+    from urllib.parse import unquote
+    url_str = unquote(str(mock_route.calls.last.request.url))
+    assert "$top" not in url_str
 
 def test_cli_issue_list_missing_project(tmp_path):
     runner = CliRunner()
@@ -489,6 +521,7 @@ def test_cli_issue_list_help():
     assert "--assignee" in result.output
     assert "--query" in result.output
     assert "--unresolved" in result.output
+    assert "--all" in result.output
     assert "--top" in result.output
     assert "--json" in result.output
 
@@ -1152,7 +1185,7 @@ def test_cli_issue_show_table_success(tmp_path):
     save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
     env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
     
-    url = "https://example.youtrack.cloud/api/issues/YTCLI-50?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created)"
+    url = "https://example.youtrack.cloud/api/issues/YTCLI-50?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created),links(direction,linkType(name),issues(idReadable,resolved,summary))"
     mock_route = respx.get(url).respond(
         status_code=200,
         json={
@@ -1198,7 +1231,7 @@ def test_cli_issue_show_json_success(tmp_path):
     save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
     env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
     
-    url = "https://example.youtrack.cloud/api/issues/YTCLI-50?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created)"
+    url = "https://example.youtrack.cloud/api/issues/YTCLI-50?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created),links(direction,linkType(name),issues(idReadable,resolved,summary))"
     mock_route = respx.get(url).respond(
         status_code=200,
         json={
@@ -1233,7 +1266,7 @@ def test_cli_issue_show_api_error(tmp_path):
     save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
     env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
     
-    url = "https://example.youtrack.cloud/api/issues/YTCLI-50?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created)"
+    url = "https://example.youtrack.cloud/api/issues/YTCLI-50?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created),links(direction,linkType(name),issues(idReadable,resolved,summary))"
     mock_route = respx.get(url).respond(
         status_code=404,
         json={"error": "not_found", "error_description": "Issue not found"}
@@ -1382,6 +1415,100 @@ def test_cli_issue_update_api_error(tmp_path):
     assert result.exit_code != 0
     assert "Error: Issue not found" in result.output
     assert mock_route.called
+
+
+@respx.mock
+def test_cli_issue_depend_success(tmp_path):
+    runner = CliRunner()
+    config_dir = tmp_path / "youtrack-cli"
+    save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
+    env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
+
+    route = respx.post("https://example.youtrack.cloud/api/commands").respond(
+        status_code=200,
+        json={}
+    )
+
+    result = runner.invoke(
+        main,
+        ["issue", "depend", "DEMO-43", "--on", "DEMO-42"],
+        env=env
+    )
+    assert result.exit_code == 0
+    assert "Created dependency link: DEMO-43 depends on DEMO-42" in result.output
+    assert route.called
+
+    import json
+    request_payload = route.calls.last.request.read().decode("utf-8")
+    payload = json.loads(request_payload)
+    assert payload == {
+        "query": "depends on DEMO-42",
+        "issues": [{"idReadable": "DEMO-43"}]
+    }
+
+
+@respx.mock
+def test_cli_issue_depend_remove_success(tmp_path):
+    runner = CliRunner()
+    config_dir = tmp_path / "youtrack-cli"
+    save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
+    env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
+
+    route = respx.post("https://example.youtrack.cloud/api/commands").respond(
+        status_code=200,
+        json={}
+    )
+
+    result = runner.invoke(
+        main,
+        ["issue", "depend", "DEMO-43", "--on", "DEMO-42", "--remove"],
+        env=env
+    )
+    assert result.exit_code == 0
+    assert "Removed dependency link: DEMO-43 no longer depends on DEMO-42" in result.output
+    assert route.called
+
+    import json
+    request_payload = route.calls.last.request.read().decode("utf-8")
+    payload = json.loads(request_payload)
+    assert payload == {
+        "query": "remove depends on DEMO-42",
+        "issues": [{"idReadable": "DEMO-43"}]
+    }
+
+
+@respx.mock
+def test_cli_issue_depend_api_error(tmp_path):
+    runner = CliRunner()
+    config_dir = tmp_path / "youtrack-cli"
+    save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
+    env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
+
+    respx.post("https://example.youtrack.cloud/api/commands").respond(
+        status_code=400,
+        json={"error": "bad_request", "error_description": "issue id expected: DEMO-999"}
+    )
+
+    result = runner.invoke(
+        main,
+        ["issue", "depend", "DEMO-43", "--on", "DEMO-999"],
+        env=env
+    )
+    assert result.exit_code != 0
+    assert "Error: issue id expected: DEMO-999" in result.output
+
+
+def test_cli_issue_depend_missing_args(tmp_path):
+    runner = CliRunner()
+    config_dir = tmp_path / "youtrack-cli"
+    save_config("https://example.youtrack.cloud", "perm:test-token", config_dir=config_dir)
+    env = {"YOUTRACK_CONFIG_DIR": str(config_dir)}
+
+    # Missing --on option
+    result = runner.invoke(main, ["issue", "depend", "DEMO-43"], env=env)
+    assert result.exit_code != 0
+    assert "Error: Missing option '--on'" in result.output
+
 
 
 

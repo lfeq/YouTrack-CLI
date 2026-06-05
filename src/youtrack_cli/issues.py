@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, List
 from youtrack_cli.client import YouTrackClient, YouTrackAPIError
 
@@ -10,6 +10,9 @@ class Issue:
     description: Optional[str] = None
     status: Optional[str] = None
     assignee: Optional[str] = None
+    priority: Optional[str] = None
+    blocked: bool = False
+
 
 
 @dataclass
@@ -124,33 +127,21 @@ def list_issues(
     query: Optional[str] = None,
     unresolved: bool = False,
     top: Optional[int] = 50,
+    all: bool = False,
 ) -> List[Issue]:
     """List issues in a project with filtering."""
     # 1. Build the query string
-    parts = [f"project: {project_short_name}"]
-    
-    if query:
-        parts.append(query)
-        
-    if tag:
-        tag_val = f'"{tag}"' if ' ' in tag else tag
-        parts.append(f"tag: {tag_val}")
-        
-    if status:
-        status_val = f'"{status}"' if ' ' in status else status
-        parts.append(f"State: {status_val}")
-        
-    if assignee:
-        assignee_val = f'"{assignee}"' if ' ' in assignee else assignee
-        parts.append(f"assignee: {assignee_val}")
-        
-    if unresolved:
-        parts.append("#Unresolved")
-        
-    query_str = " ".join(parts)
+    query_str = build_issue_list_query(
+        project_short_name=project_short_name,
+        tag=tag,
+        status=status,
+        assignee=assignee,
+        query=query,
+        all=all,
+    )
     
     # 2. Call the REST API
-    fields = "id,idReadable,summary,description,customFields(name,value(name,login))"
+    fields = "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))"
     params = {
         "fields": fields,
         "query": query_str
@@ -169,6 +160,7 @@ def list_issues(
     for item in data:
         item_status = None
         item_assignee = None
+        item_priority = None
         for field in item.get("customFields", []):
             field_name = field.get("name")
             field_value = field.get("value")
@@ -183,7 +175,13 @@ def list_issues(
                         item_assignee = field_value.get("login") or field_value.get("name")
                     else:
                         item_assignee = str(field_value)
+                elif field_name == "Priority":
+                    if isinstance(field_value, dict):
+                        item_priority = field_value.get("name")
+                    else:
+                        item_priority = str(field_value)
                         
+        _, _, blocked = parse_dependency_links(item.get("links"))
         issues.append(
             Issue(
                 id=item["id"],
@@ -191,9 +189,12 @@ def list_issues(
                 summary=item["summary"],
                 description=item.get("description"),
                 status=item_status,
-                assignee=item_assignee
+                assignee=item_assignee,
+                priority=item_priority,
+                blocked=blocked
             )
         )
+
         
     return issues
 
@@ -220,6 +221,7 @@ def move_issue(client: YouTrackClient, issue_id: str, status: str) -> Issue:
     
     item_status = None
     item_assignee = None
+    item_priority = None
     for field in data.get("customFields", []):
         field_name = field.get("name")
         field_value = field.get("value")
@@ -234,6 +236,11 @@ def move_issue(client: YouTrackClient, issue_id: str, status: str) -> Issue:
                     item_assignee = field_value.get("login") or field_value.get("name")
                 else:
                     item_assignee = str(field_value)
+            elif field_name == "Priority":
+                if isinstance(field_value, dict):
+                    item_priority = field_value.get("name")
+                else:
+                    item_priority = str(field_value)
                     
     return Issue(
         id=data["id"],
@@ -241,7 +248,8 @@ def move_issue(client: YouTrackClient, issue_id: str, status: str) -> Issue:
         summary=data["summary"],
         description=data.get("description"),
         status=item_status,
-        assignee=item_assignee
+        assignee=item_assignee,
+        priority=item_priority
     )
 
 
@@ -342,6 +350,31 @@ def link_subtask(client: YouTrackClient, child_id: str, parent_id: str) -> None:
     )
 
 
+def add_dependency(client: YouTrackClient, issue_id: str, target_id: str) -> None:
+    """Create a dependency relationship making issue_id depend on target_id."""
+    client._request(
+        "POST",
+        "api/commands",
+        json={
+            "query": f"depends on {target_id}",
+            "issues": [{"idReadable": issue_id}]
+        }
+    )
+
+
+def remove_dependency(client: YouTrackClient, issue_id: str, target_id: str) -> None:
+    """Remove a dependency relationship making issue_id no longer depend on target_id."""
+    client._request(
+        "POST",
+        "api/commands",
+        json={
+            "query": f"remove depends on {target_id}",
+            "issues": [{"idReadable": issue_id}]
+        }
+    )
+
+
+
 def add_comment(client: YouTrackClient, issue_id: str, message: str) -> Comment:
     """Append a comment to an issue."""
     url = f"api/issues/{issue_id}/comments?fields=id,text,author(id,login,name),created"
@@ -372,11 +405,14 @@ class IssueDetail:
     status: Optional[str] = None
     assignee: Optional[str] = None
     comments: List[Comment] = None
+    depends_on: List[dict] = field(default_factory=list)
+    required_for: List[dict] = field(default_factory=list)
+
 
 
 def show_issue(client: YouTrackClient, issue_id: str) -> IssueDetail:
     """Fetch a single issue including its description and its comments in one request."""
-    url = f"api/issues/{issue_id}?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created)"
+    url = f"api/issues/{issue_id}?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created),links(direction,linkType(name),issues(idReadable,resolved,summary))"
     data = client._request("GET", url)
     
     item_status = None
@@ -414,6 +450,8 @@ def show_issue(client: YouTrackClient, issue_id: str) -> IssueDetail:
             )
         )
         
+    depends_on, required_for, _ = parse_dependency_links(data.get("links"))
+
     return IssueDetail(
         id=data["id"],
         id_readable=data["idReadable"],
@@ -421,7 +459,9 @@ def show_issue(client: YouTrackClient, issue_id: str) -> IssueDetail:
         description=data.get("description"),
         status=item_status,
         assignee=item_assignee,
-        comments=comments
+        comments=comments,
+        depends_on=depends_on,
+        required_for=required_for
     )
 
 
@@ -473,6 +513,81 @@ def update_issue(
         status=item_status,
         assignee=item_assignee
     )
+
+
+def build_issue_list_query(
+    project_short_name: str,
+    tag: Optional[str] = None,
+    status: Optional[str] = None,
+    assignee: Optional[str] = None,
+    query: Optional[str] = None,
+    all: bool = False,
+) -> str:
+    """Build YouTrack issue query string based on inputs."""
+    parts = [f"project: {project_short_name}"]
+    if query:
+        parts.append(query)
+    if tag:
+        tag_val = f'"{tag}"' if ' ' in tag else tag
+        parts.append(f"tag: {tag_val}")
+    if status:
+        status_val = f'"{status}"' if ' ' in status else status
+        parts.append(f"State: {status_val}")
+    if assignee:
+        assignee_val = f'"{assignee}"' if ' ' in assignee else assignee
+        parts.append(f"assignee: {assignee_val}")
+
+    if not (all or status or query):
+        parts.append("#Unresolved")
+
+    has_sort_by = False
+    if query and "sort by" in query.lower():
+        has_sort_by = True
+
+    if not has_sort_by:
+        parts.append("sort by: priority asc, State asc")
+
+    return " ".join(parts)
+
+
+def parse_dependency_links(links: Optional[List[dict]]) -> tuple[List[dict], List[dict], bool]:
+    """Parse raw links from YouTrack to extract depends_on, required_for, and blocked status."""
+    depends_on = []
+    required_for = []
+    blocked = False
+
+    if not links:
+        return depends_on, required_for, blocked
+
+    for link in links:
+        link_type = link.get("linkType")
+        if not link_type or link_type.get("name") != "Depend":
+            continue
+
+        direction = link.get("direction")
+        issues = link.get("issues") or []
+
+        for issue in issues:
+            id_readable = issue.get("idReadable")
+            summary = issue.get("summary", "")
+            resolved = issue.get("resolved", False)
+
+            item = {
+                "id": id_readable,
+                "summary": summary,
+                "resolved": resolved
+            }
+
+            if direction == "OUTWARD":
+                depends_on.append(item)
+                if not resolved:
+                    blocked = True
+            elif direction == "INWARD":
+                required_for.append(item)
+
+    return depends_on, required_for, blocked
+
+
 
 
 

@@ -127,8 +127,8 @@ def test_list_issues_query_merging():
         "GET",
         "api/issues",
         params={
-            "fields": "id,idReadable,summary,description,customFields(name,value(name,login))",
-            "query": "project: DEMO",
+            "fields": "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))",
+            "query": "project: DEMO #Unresolved sort by: priority asc, State asc",
             "$top": 50
         }
     )
@@ -139,8 +139,8 @@ def test_list_issues_query_merging():
         "GET",
         "api/issues",
         params={
-            "fields": "id,idReadable,summary,description,customFields(name,value(name,login))",
-            "query": "project: DEMO tag: backend",
+            "fields": "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))",
+            "query": "project: DEMO tag: backend #Unresolved sort by: priority asc, State asc",
             "$top": 50
         }
     )
@@ -158,8 +158,8 @@ def test_list_issues_query_merging():
         "GET",
         "api/issues",
         params={
-            "fields": "id,idReadable,summary,description,customFields(name,value(name,login))",
-            "query": 'project: DEMO priority: Critical tag: "front end" State: "In Progress" assignee: john.doe',
+            "fields": "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))",
+            "query": 'project: DEMO priority: Critical tag: "front end" State: "In Progress" assignee: john.doe sort by: priority asc, State asc',
             "$top": 50
         }
     )
@@ -173,12 +173,26 @@ def test_list_issues_unresolved():
         "GET",
         "api/issues",
         params={
-            "fields": "id,idReadable,summary,description,customFields(name,value(name,login))",
-            "query": "project: DEMO #Unresolved",
+            "fields": "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))",
+            "query": "project: DEMO #Unresolved sort by: priority asc, State asc",
             "$top": 50
         }
     )
 
+def test_list_issues_all():
+    mock_client = MagicMock(spec=YouTrackClient)
+    mock_client._request.return_value = []
+    
+    list_issues(client=mock_client, project_short_name="DEMO", all=True)
+    mock_client._request.assert_called_with(
+        "GET",
+        "api/issues",
+        params={
+            "fields": "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))",
+            "query": "project: DEMO sort by: priority asc, State asc",
+            "$top": 50
+        }
+    )
 
 def test_list_issues_top():
     mock_client = MagicMock(spec=YouTrackClient)
@@ -190,8 +204,8 @@ def test_list_issues_top():
         "GET",
         "api/issues",
         params={
-            "fields": "id,idReadable,summary,description,customFields(name,value(name,login))",
-            "query": "project: DEMO",
+            "fields": "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))",
+            "query": "project: DEMO #Unresolved sort by: priority asc, State asc",
             "$top": 50
         }
     )
@@ -202,8 +216,8 @@ def test_list_issues_top():
         "GET",
         "api/issues",
         params={
-            "fields": "id,idReadable,summary,description,customFields(name,value(name,login))",
-            "query": "project: DEMO",
+            "fields": "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))",
+            "query": "project: DEMO #Unresolved sort by: priority asc, State asc",
             "$top": 10
         }
     )
@@ -214,8 +228,8 @@ def test_list_issues_top():
         "GET",
         "api/issues",
         params={
-            "fields": "id,idReadable,summary,description,customFields(name,value(name,login))",
-            "query": "project: DEMO"
+            "fields": "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))",
+            "query": "project: DEMO #Unresolved sort by: priority asc, State asc"
         }
     )
     
@@ -225,10 +239,11 @@ def test_list_issues_top():
         "GET",
         "api/issues",
         params={
-            "fields": "id,idReadable,summary,description,customFields(name,value(name,login))",
-            "query": "project: DEMO"
+            "fields": "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))",
+            "query": "project: DEMO #Unresolved sort by: priority asc, State asc"
         }
     )
+
 
 
 def test_list_issues_parsing():
@@ -277,6 +292,37 @@ def test_list_issues_parsing():
         status=None,
         assignee=None
     )
+
+
+def test_list_issues_priority_parsing():
+    mock_client = MagicMock(spec=YouTrackClient)
+    mock_client._request.return_value = [
+        {
+            "id": "2-100",
+            "idReadable": "DEMO-42",
+            "summary": "Fix login bug",
+            "description": "User cannot login",
+            "customFields": [
+                {
+                    "name": "State",
+                    "value": {"name": "In Progress"}
+                },
+                {
+                    "name": "Assignee",
+                    "value": {"login": "john.doe", "name": "John Doe"}
+                },
+                {
+                    "name": "Priority",
+                    "value": {"name": "Critical"}
+                }
+            ]
+        }
+    ]
+    
+    issues = list_issues(client=mock_client, project_short_name="DEMO")
+    
+    assert len(issues) == 1
+    assert issues[0].priority == "Critical"
 
 
 def test_move_issue_success():
@@ -973,7 +1019,7 @@ def test_show_issue_success_with_comments():
         created=1690000000000
     )
     
-    url = "api/issues/YTCLI-50?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created)"
+    url = "api/issues/YTCLI-50?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created),links(direction,linkType(name),issues(idReadable,resolved,summary))"
     mock_client._request.assert_called_once_with("GET", url)
 
 
@@ -1115,6 +1161,344 @@ def test_update_issue_none_raises_error():
 
     assert "At least one of description or summary must be provided" in str(exc_info.value)
     mock_client._request.assert_not_called()
+
+
+def test_build_issue_list_query_default():
+    from youtrack_cli.issues import build_issue_list_query
+    query = build_issue_list_query(project_short_name="YTCLI")
+    assert query == "project: YTCLI #Unresolved sort by: priority asc, State asc"
+
+
+def test_build_issue_list_query_all():
+    from youtrack_cli.issues import build_issue_list_query
+    query = build_issue_list_query(project_short_name="YTCLI", all=True)
+    assert query == "project: YTCLI sort by: priority asc, State asc"
+
+
+def test_build_issue_list_query_status():
+    from youtrack_cli.issues import build_issue_list_query
+    query = build_issue_list_query(project_short_name="YTCLI", status="Fixed")
+    assert query == "project: YTCLI State: Fixed sort by: priority asc, State asc"
+    
+    query_space = build_issue_list_query(project_short_name="YTCLI", status="In Progress")
+    assert query_space == 'project: YTCLI State: "In Progress" sort by: priority asc, State asc'
+
+
+def test_build_issue_list_query_raw_query_no_sort():
+    from youtrack_cli.issues import build_issue_list_query
+    query = build_issue_list_query(project_short_name="YTCLI", query="priority: Critical")
+    assert query == "project: YTCLI priority: Critical sort by: priority asc, State asc"
+
+
+def test_build_issue_list_query_raw_query_with_sort():
+    from youtrack_cli.issues import build_issue_list_query
+    # with lowercase sort by
+    query1 = build_issue_list_query(project_short_name="YTCLI", query="assignee: me sort by: created desc")
+    assert query1 == "project: YTCLI assignee: me sort by: created desc"
+
+    # with uppercase SORT BY
+    query2 = build_issue_list_query(project_short_name="YTCLI", query="assignee: me SORT BY: created desc")
+    assert query2 == "project: YTCLI assignee: me SORT BY: created desc"
+
+
+def test_build_issue_list_query_composition():
+    from youtrack_cli.issues import build_issue_list_query
+    query = build_issue_list_query(project_short_name="YTCLI", tag="backend", assignee="lorenz")
+    assert query == "project: YTCLI tag: backend assignee: lorenz #Unresolved sort by: priority asc, State asc"
+
+
+def test_build_issue_list_query_status_and_all():
+    from youtrack_cli.issues import build_issue_list_query
+    query = build_issue_list_query(project_short_name="YTCLI", status="Fixed", all=True)
+    assert query == "project: YTCLI State: Fixed sort by: priority asc, State asc"
+
+
+def test_add_dependency_success():
+    from youtrack_cli.issues import add_dependency
+    mock_client = MagicMock(spec=YouTrackClient)
+    mock_client._request.return_value = {}
+
+    add_dependency(mock_client, issue_id="DEMO-43", target_id="DEMO-42")
+
+    mock_client._request.assert_called_once_with(
+        "POST",
+        "api/commands",
+        json={
+            "query": "depends on DEMO-42",
+            "issues": [{"idReadable": "DEMO-43"}]
+        }
+    )
+
+
+def test_add_dependency_failure():
+    from youtrack_cli.issues import add_dependency
+    mock_client = MagicMock(spec=YouTrackClient)
+    mock_client._request.side_effect = YouTrackAPIError("API error")
+
+    with pytest.raises(YouTrackAPIError) as exc_info:
+        add_dependency(mock_client, issue_id="DEMO-43", target_id="DEMO-42")
+
+    assert "API error" in str(exc_info.value)
+
+
+def test_remove_dependency_success():
+    from youtrack_cli.issues import remove_dependency
+    mock_client = MagicMock(spec=YouTrackClient)
+    mock_client._request.return_value = {}
+
+    remove_dependency(mock_client, issue_id="DEMO-43", target_id="DEMO-42")
+
+    mock_client._request.assert_called_once_with(
+        "POST",
+        "api/commands",
+        json={
+            "query": "remove depends on DEMO-42",
+            "issues": [{"idReadable": "DEMO-43"}]
+        }
+    )
+
+
+def test_remove_dependency_failure():
+    from youtrack_cli.issues import remove_dependency
+    mock_client = MagicMock(spec=YouTrackClient)
+    mock_client._request.side_effect = YouTrackAPIError("API error")
+
+    with pytest.raises(YouTrackAPIError) as exc_info:
+        remove_dependency(mock_client, issue_id="DEMO-43", target_id="DEMO-42")
+
+    assert "API error" in str(exc_info.value)
+
+
+def test_parse_dependency_links():
+    from youtrack_cli.issues import parse_dependency_links
+
+    # 1. Empty/None links
+    assert parse_dependency_links([]) == ([], [], False)
+    assert parse_dependency_links(None) == ([], [], False)
+
+    # 2. Outward dependencies (depends_on)
+    links = [
+        {
+            "direction": "OUTWARD",
+            "linkType": {"name": "Depend"},
+            "issues": [
+                {"idReadable": "DEMO-42", "summary": "Prereq 1", "resolved": False},
+                {"idReadable": "DEMO-43", "summary": "Prereq 2", "resolved": True}
+            ]
+        }
+    ]
+    depends_on, required_for, blocked = parse_dependency_links(links)
+    assert depends_on == [
+        {"id": "DEMO-42", "summary": "Prereq 1", "resolved": False},
+        {"id": "DEMO-43", "summary": "Prereq 2", "resolved": True}
+    ]
+    assert required_for == []
+    assert blocked is True
+
+    # 3. Incoming dependencies (required_for)
+    links = [
+        {
+            "direction": "INWARD",
+            "linkType": {"name": "Depend"},
+            "issues": [
+                {"idReadable": "DEMO-44", "summary": "Subsequent 1", "resolved": False}
+            ]
+        }
+    ]
+    depends_on, required_for, blocked = parse_dependency_links(links)
+    assert depends_on == []
+    assert required_for == [
+        {"id": "DEMO-44", "summary": "Subsequent 1", "resolved": False}
+    ]
+    assert blocked is False
+
+    # 4. Mixed unresolved / resolved outgoing dependencies
+    links = [
+        {
+            "direction": "OUTWARD",
+            "linkType": {"name": "Depend"},
+            "issues": [
+                {"idReadable": "DEMO-43", "summary": "Prereq 2", "resolved": True}
+            ]
+        }
+    ]
+    depends_on, required_for, blocked = parse_dependency_links(links)
+    assert blocked is False
+
+    # 5. Unrelated link types ignored
+    links = [
+        {
+            "direction": "OUTWARD",
+            "linkType": {"name": "Subtask"},
+            "issues": [
+                {"idReadable": "DEMO-45", "summary": "Epic parent", "resolved": False}
+            ]
+        }
+    ]
+    depends_on, required_for, blocked = parse_dependency_links(links)
+    assert depends_on == []
+    assert required_for == []
+    assert blocked is False
+
+
+def test_list_issues_with_dependencies():
+    mock_client = MagicMock(spec=YouTrackClient)
+    mock_client._request.return_value = [
+        {
+            "id": "2-100",
+            "idReadable": "DEMO-42",
+            "summary": "Fix login bug",
+            "customFields": [],
+            "links": [
+                {
+                    "direction": "OUTWARD",
+                    "linkType": {"name": "Depend"},
+                    "issues": [
+                        {"idReadable": "DEMO-43", "summary": "Unresolved dep", "resolved": False}
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "2-101",
+            "idReadable": "DEMO-43",
+            "summary": "Unresolved dep",
+            "customFields": [],
+            "links": []
+        }
+    ]
+
+    issues = list_issues(client=mock_client, project_short_name="DEMO")
+    assert len(issues) == 2
+    assert issues[0].blocked is True
+    assert issues[1].blocked is False
+
+    # Check that requested fields now include links(...)
+    expected_fields = "id,idReadable,summary,description,customFields(name,value(name,login)),links(direction,linkType(name),issues(idReadable,resolved,summary))"
+    mock_client._request.assert_called_once_with(
+        "GET",
+        "api/issues",
+        params={
+            "fields": expected_fields,
+            "query": "project: DEMO #Unresolved sort by: priority asc, State asc",
+            "$top": 50
+        }
+    )
+
+
+def test_format_issues_table_blocked():
+    from youtrack_cli.formatters import format_issues_table
+    from youtrack_cli.issues import Issue
+
+    issues = [
+        Issue(
+            id="1",
+            id_readable="DEMO-42",
+            summary="Blocked issue summary",
+            description="desc",
+            status="Submitted",
+            assignee="bob",
+            priority="Normal",
+            blocked=True
+        ),
+        Issue(
+            id="2",
+            id_readable="DEMO-43",
+            summary="Normal issue summary",
+            description="desc",
+            status="Submitted",
+            assignee="bob",
+            priority="Normal",
+            blocked=False
+        )
+    ]
+
+    output = format_issues_table(issues)
+    assert "[BLOCKED] Blocked issue summary" in output
+    assert "Normal issue summary" in output
+    assert "[BLOCKED] Normal issue summary" not in output
+
+
+def test_show_issue_with_dependencies():
+    from youtrack_cli.issues import show_issue
+    mock_client = MagicMock(spec=YouTrackClient)
+
+    mock_client._request.return_value = {
+        "id": "3-50",
+        "idReadable": "YTCLI-50",
+        "summary": "Epic issue summary",
+        "description": "Epic description",
+        "customFields": [],
+        "comments": [],
+        "links": [
+            {
+                "direction": "OUTWARD",
+                "linkType": {"name": "Depend"},
+                "issues": [
+                    {"idReadable": "YTCLI-42", "summary": "Fix login bug", "resolved": False},
+                    {"idReadable": "YTCLI-43", "summary": "Add tags", "resolved": True}
+                ]
+            },
+            {
+                "direction": "INWARD",
+                "linkType": {"name": "Depend"},
+                "issues": [
+                    {"idReadable": "YTCLI-44", "summary": "Release version 1.0.0", "resolved": False}
+                ]
+            }
+        ]
+    }
+
+    issue_detail = show_issue(mock_client, "YTCLI-50")
+    assert issue_detail.depends_on == [
+        {"id": "YTCLI-42", "summary": "Fix login bug", "resolved": False},
+        {"id": "YTCLI-43", "summary": "Add tags", "resolved": True}
+    ]
+    assert issue_detail.required_for == [
+        {"id": "YTCLI-44", "summary": "Release version 1.0.0", "resolved": False}
+    ]
+
+    expected_url = "api/issues/YTCLI-50?fields=id,idReadable,summary,description,customFields(name,value(name,login)),comments(id,text,author(id,login,name),created),links(direction,linkType(name),issues(idReadable,resolved,summary))"
+    mock_client._request.assert_called_once_with("GET", expected_url)
+
+
+def test_format_issue_detail_table_dependencies():
+    from youtrack_cli.formatters import format_issue_detail_table
+    from youtrack_cli.issues import IssueDetail
+
+    issue = IssueDetail(
+        id="3-50",
+        id_readable="YTCLI-50",
+        summary="Epic issue summary",
+        description="Epic description",
+        status="Open",
+        assignee="bob",
+        comments=[],
+        depends_on=[
+            {"id": "YTCLI-42", "summary": "Fix login bug", "resolved": False},
+            {"id": "YTCLI-43", "summary": "Add tags", "resolved": True}
+        ],
+        required_for=[
+            {"id": "YTCLI-44", "summary": "Release version 1.0.0", "resolved": False}
+        ]
+    )
+
+    output = format_issue_detail_table(issue)
+    assert "Depends on:" in output
+    assert "- YTCLI-42: Fix login bug [unresolved] (BLOCKING)" in output
+    assert "- YTCLI-43: Add tags [resolved]" in output
+    assert "Required for:" in output
+    assert "- YTCLI-44: Release version 1.0.0 [unresolved]" in output
+
+
+
+
+
+
+
+
+
+
 
 
 

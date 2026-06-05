@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "youtrack-cli"
-version = "0.2.0"
+version = "1.0.0"
 description = "A cross-platform command-line tool for interacting with YouTrack"
 readme = "README.md"
 license = { file = "LICENSE" }

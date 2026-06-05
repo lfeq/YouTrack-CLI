@@ -14,33 +14,33 @@ The Priority field already exists on `issue create` (and `issue priorities` list
 
 Make `issue list` opinionated toward its primary consumer. By default it now answers "what should I work on next?" directly:
 
-- It scopes to **pending** work (YouTrack `#Unresolved`), hiding resolved issues unless asked.
-- It **sorts** results so the highest-priority, freshest work is at the top — `Show-stopper`/`Critical` before `Minor`, and within a priority tier, `Submitted` (brand-new, unstarted) issues first.
-- It does the sort **server-side**, so the `--top` cap trims *after* ordering and the most important work is never hidden below the cut.
-- It **shows Priority** as a column and in JSON, so the ordering is legible.
+- [x] It scopes to **pending** work (YouTrack `#Unresolved`), hiding resolved issues unless asked.
+- [x] It **sorts** results so the highest-priority, freshest work is at the top — `Show-stopper`/`Critical` before `Minor`, and within a priority tier, `Submitted` (brand-new, unstarted) issues first.
+- [x] It does the sort **server-side**, so the `--top` cap trims *after* ordering and the most important work is never hidden below the cut.
+- [x] It **shows Priority** as a column and in JSON, so the ordering is legible.
 
 Escape hatches keep the command honest: `--all` brings back resolved issues, and any explicit resolution intent (`--status`, or a raw `--query`) steps out of the way of the defaults rather than fighting them.
 
 ## User Stories
 
-1. As an agent starting work on a project, I want `issue list` to return only pending issues by default, so that resolved work doesn't fill my context.
-2. As an agent, I want `issue list` to put the highest-priority issues at the top by default, so that the first rows are the ones that matter most.
-3. As an agent, I want issues of equal priority to be ordered with `Submitted` (new, unstarted) first, so that I grab fresh high-priority work before work that is already underway.
-4. As an agent, I want the priority ordering applied server-side before the `--top` cap, so that the most important issues are never trimmed away below the cut.
-5. As an agent, I want each listed issue to show its Priority, so that I can see why the list is ordered the way it is and justify which issue I pick.
-6. As a developer scripting against the CLI, I want Priority included in `--json` output, so that my tooling can read and act on it.
-7. As a developer, I want a `--all` flag on `issue list`, so that I can include resolved issues when I am auditing completed work.
-8. As a developer, I want passing `--status Fixed` (or any explicit status) to automatically drop the default pending filter, so that asking for a resolved status does not silently return nothing.
-9. As a power user, I want a raw `--query` to suppress the default pending filter, so that I retain full control of the query when I opt into the escape hatch.
-10. As a power user, I want a raw `--query` that already contains `sort by` to suppress the default sort, so that my explicit ordering is never overridden by a second sort clause.
-11. As an agent, I want the default `--top 50` cap to still apply after sorting, so that a large project never floods my context.
-12. As an agent that really does want everything, I want `--top 0` to remove the cap, so that I can opt out when I need the full set.
-13. As an existing user of the old `--unresolved` flag, I want it to keep working as a harmless no-op, so that my existing commands and scripts don't break.
-14. As a developer, I want the default filters and sort to compose with `--tag` and `--assignee`, so that I can express "pending issues assigned to me, by priority" in one call.
-15. As a developer, I want "pending" to map to YouTrack's `#Unresolved` rather than hard-coded state names, so that it stays correct across the five pending states and any future ones.
-16. As a developer, I want the priority sort to use `sort by: priority asc` (not `desc`), so that the highest-priority bundle value (`Show-stopper`, ordinal 0) sorts to the top instead of the bottom.
-17. As a maintainer, I want the `asc`-not-`desc` rationale documented, so that nobody "fixes" the direction into a silent bug later.
-18. As an agent, I want a single `issue list` call to be a complete answer to "what should I work on next?", so that I don't need to chain multiple filtered calls.
+1. [x] As an agent starting work on a project, I want `issue list` to return only pending issues by default, so that resolved work doesn't fill my context.
+2. [x] As an agent, I want `issue list` to put the highest-priority issues at the top by default, so that the first rows are the ones that matter most.
+3. [x] As an agent, I want issues of equal priority to be ordered with `Submitted` (new, unstarted) first, so that I grab fresh high-priority work before work that is already underway.
+4. [x] As an agent, I want the priority ordering applied server-side before the `--top` cap, so that the most important issues are never trimmed away below the cut.
+5. [x] As an agent, I want each listed issue to show its Priority, so that I can see why the list is ordered the way it is and justify which issue I pick.
+6. [x] As a developer scripting against the CLI, I want Priority included in `--json` output, so that my tooling can read and act on it.
+7. [x] As a developer, I want a `--all` flag on `issue list`, so that I can include resolved issues when I am auditing completed work.
+8. [x] As a developer, I want passing `--status Fixed` (or any explicit status) to automatically drop the default pending filter, so that asking for a resolved status does not silently return nothing.
+9. [x] As a power user, I want a raw `--query` to suppress the default pending filter, so that I retain full control of the query when I opt into the escape hatch.
+10. [x] As a power user, I want a raw `--query` that already contains `sort by` to suppress the default sort, so that my explicit ordering is never overridden by a second sort clause.
+11. [x] As an agent, I want the default `--top 50` cap to still apply after sorting, so that a large project never floods my context.
+12. [x] As an agent that really does want everything, I want `--top 0` to remove the cap, so that I can opt out when I need the full set.
+13. [x] As an existing user of the old `--unresolved` flag, I want it to keep working as a harmless no-op, so that my existing commands and scripts don't break.
+14. [x] As a developer, I want the default filters and sort to compose with `--tag` and `--assignee`, so that I can express "pending issues assigned to me, by priority" in one call.
+15. [x] As a developer, I want "pending" to map to YouTrack's `#Unresolved` rather than hard-coded state names, so that it stays correct across the five pending states and any future ones.
+16. [x] As a developer, I want the priority sort to use `sort by: priority asc` (not `desc`), so that the highest-priority bundle value (`Show-stopper`, ordinal 0) sorts to the top instead of the bottom.
+17. [x] As a maintainer, I want the `asc`-not-`desc` rationale documented, so that nobody "fixes" the direction into a silent bug later.
+18. [x] As an agent, I want a single `issue list` call to be a complete answer to "what should I work on next?", so that I don't need to chain multiple filtered calls.
 
 ## Implementation Decisions
 
@@ -86,3 +86,8 @@ Escape hatches keep the command honest: `--all` brings back resolved issues, and
 - The ordering depends on the project's Priority and State bundles using YouTrack's conventional ordinal direction (highest priority at ordinal 0, `Submitted` at State ordinal 0). This held for `YTCLI`; a project that re-orders its bundles would re-order these results. This is an accepted trade-off, not a bug.
 - Empirically verified against `YTCLI`: Priority bundle order is `Show-stopper, Critical, Major, Normal, Minor`; the unresolved States are `Submitted, Open, In Progress, To be discussed, Reopened`. The default pending filter currently returns empty on `YTCLI` because every issue is `Fixed` — the correct, expected result.
 - See `docs/adr/0004-priority-ordered-default-issue-listing.md` and the updated `CONTEXT.md` (Language: **Priority**, **Pending**; Architecture: Agent-safe listing).
+
+## Documentation
+
+- [x] Update the README with a full command reference documenting every `youtrack` command and flag currently available, reflecting the new `issue list` defaults, priority sorting, columns, and json structure.
+

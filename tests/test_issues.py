@@ -1491,24 +1491,204 @@ def test_format_issue_detail_table_dependencies():
     assert "- YTCLI-44: Release version 1.0.0 [unresolved]" in output
 
 
+def test_parse_subtask_links_basics():
+    from youtrack_cli.issues import parse_subtask_links
+
+    # 1. Empty/None links
+    assert parse_subtask_links([]) == (None, [])
+    assert parse_subtask_links(None) == (None, [])
+
+    # 2. Non-Subtask link types ignored
+    links = [
+        {
+            "direction": "OUTWARD",
+            "linkType": {"name": "Depend"},
+            "issues": [
+                {"idReadable": "DEMO-42", "summary": "Dependency 1", "resolved": False}
+            ]
+        }
+    ]
+    assert parse_subtask_links(links) == (None, [])
 
 
+def test_parse_subtask_links_directionality():
+    from youtrack_cli.issues import parse_subtask_links
+
+    # 1. INWARD maps to parent (single dict)
+    links = [
+        {
+            "direction": "INWARD",
+            "linkType": {"name": "Subtask"},
+            "issues": [
+                {"idReadable": "YTCLI-41", "summary": "Epic summary", "resolved": False}
+            ]
+        }
+    ]
+    parent, subtasks = parse_subtask_links(links)
+    assert parent == {"id": "YTCLI-41", "summary": "Epic summary", "resolved": False}
+    assert subtasks == []
+
+    # 2. OUTWARD maps to subtasks list
+    links = [
+        {
+            "direction": "OUTWARD",
+            "linkType": {"name": "Subtask"},
+            "issues": [
+                {"idReadable": "YTCLI-42", "summary": "Subtask 1", "resolved": False},
+                {"idReadable": "YTCLI-43", "summary": "Subtask 2", "resolved": True}
+            ]
+        }
+    ]
+    parent, subtasks = parse_subtask_links(links)
+    assert parent is None
+    assert subtasks == [
+        {"id": "YTCLI-42", "summary": "Subtask 1", "resolved": False},
+        {"id": "YTCLI-43", "summary": "Subtask 2", "resolved": True}
+    ]
+
+    # 3. BOTH direction is skipped
+    links = [
+        {
+            "direction": "BOTH",
+            "linkType": {"name": "Subtask"},
+            "issues": [
+                {"idReadable": "YTCLI-44", "summary": "Both summary", "resolved": False}
+            ]
+        }
+    ]
+    parent, subtasks = parse_subtask_links(links)
+    assert parent is None
+    assert subtasks == []
+
+    # 4. Multiple INWARD links: first wins, others ignored
+    links = [
+        {
+            "direction": "INWARD",
+            "linkType": {"name": "Subtask"},
+            "issues": [
+                {"idReadable": "YTCLI-41", "summary": "Epic 1", "resolved": False},
+                {"idReadable": "YTCLI-45", "summary": "Epic 2", "resolved": True}
+            ]
+        }
+    ]
+    parent, subtasks = parse_subtask_links(links)
+    assert parent == {"id": "YTCLI-41", "summary": "Epic 1", "resolved": False}
+    assert subtasks == []
 
 
+def test_show_issue_with_hierarchy_and_dependencies():
+    from youtrack_cli.issues import show_issue
+    mock_client = MagicMock(spec=YouTrackClient)
+
+    mock_client._request.return_value = {
+        "id": "3-50",
+        "idReadable": "YTCLI-50",
+        "summary": "Epic issue summary",
+        "description": "Epic description",
+        "customFields": [],
+        "comments": [],
+        "links": [
+            {
+                "direction": "OUTWARD",
+                "linkType": {"name": "Depend"},
+                "issues": [
+                    {"idReadable": "YTCLI-42", "summary": "Fix login bug", "resolved": False}
+                ]
+            },
+            {
+                "direction": "INWARD",
+                "linkType": {"name": "Subtask"},
+                "issues": [
+                    {"idReadable": "YTCLI-41", "summary": "Parent Epic", "resolved": True}
+                ]
+            },
+            {
+                "direction": "OUTWARD",
+                "linkType": {"name": "Subtask"},
+                "issues": [
+                    {"idReadable": "YTCLI-43", "summary": "Subtask task", "resolved": False}
+                ]
+            }
+        ]
+    }
+
+    issue_detail = show_issue(mock_client, "YTCLI-50")
+    # Verify dependencies are still parsed correctly
+    assert issue_detail.depends_on == [
+        {"id": "YTCLI-42", "summary": "Fix login bug", "resolved": False}
+    ]
+    # Verify parent and subtasks are parsed correctly
+    assert issue_detail.parent == {"id": "YTCLI-41", "summary": "Parent Epic", "resolved": True}
+    assert issue_detail.subtasks == [
+        {"id": "YTCLI-43", "summary": "Subtask task", "resolved": False}
+    ]
 
 
+def test_format_issue_detail_table_hierarchy():
+    from youtrack_cli.formatters import format_issue_detail_table
+    from youtrack_cli.issues import IssueDetail
+
+    issue = IssueDetail(
+        id="3-50",
+        id_readable="YTCLI-50",
+        summary="Mid-tree issue summary",
+        description="Description",
+        status="Open",
+        assignee="bob",
+        comments=[],
+        parent={"id": "YTCLI-41", "summary": "Parent Epic", "resolved": True},
+        subtasks=[
+            {"id": "YTCLI-43", "summary": "Subtask task", "resolved": False}
+        ]
+    )
+
+    output = format_issue_detail_table(issue)
+    assert "Parent: YTCLI-41: Parent Epic [resolved]" in output
+    assert "Subtasks:" in output
+    assert "- YTCLI-43: Subtask task [unresolved]" in output
 
 
+def test_format_issue_detail_table_no_hierarchy():
+    from youtrack_cli.formatters import format_issue_detail_table
+    from youtrack_cli.issues import IssueDetail
+
+    issue = IssueDetail(
+        id="3-50",
+        id_readable="YTCLI-50",
+        summary="No hierarchy summary",
+        description="Description",
+        status="Open",
+        assignee="bob",
+        comments=[]
+    )
+
+    output = format_issue_detail_table(issue)
+    assert "Parent:" not in output
+    assert "Subtasks:" not in output
 
 
+def test_format_issue_detail_json_hierarchy():
+    from youtrack_cli.formatters import format_issue_detail_json
+    from youtrack_cli.issues import IssueDetail
+    import json
 
+    issue = IssueDetail(
+        id="3-50",
+        id_readable="YTCLI-50",
+        summary="Epic issue summary",
+        description="Epic description",
+        status="In Progress",
+        assignee="john.doe",
+        comments=[],
+        parent={"id": "YTCLI-41", "summary": "Parent Epic", "resolved": True},
+        subtasks=[
+            {"id": "YTCLI-43", "summary": "Subtask task", "resolved": False}
+        ]
+    )
 
-
-
-
-
-
-
-
-
-
+    result = format_issue_detail_json(issue)
+    parsed = json.loads(result)
+    assert parsed["parent"] == {"id": "YTCLI-41", "summary": "Parent Epic", "resolved": True}
+    assert parsed["subtasks"] == [
+        {"id": "YTCLI-43", "summary": "Subtask task", "resolved": False}
+    ]

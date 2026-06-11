@@ -157,11 +157,19 @@ def format_issue_detail_table(issue) -> str:
         f"Summary: {issue.summary}",
         f"Status: {issue.status or ''}",
         f"Assignee: {issue.assignee or ''}",
+    ]
+    
+    if getattr(issue, "parent", None):
+        p = issue.parent
+        resolved_str = "[resolved]" if p.get("resolved") else "[unresolved]"
+        lines.append(f"Parent: {p['id']}: {p['summary']} {resolved_str}")
+
+    lines.extend([
         "",
         "Description:",
         issue.description or "",
         ""
-    ]
+    ])
     
     if getattr(issue, "depends_on", None):
         lines.append("Depends on:")
@@ -176,6 +184,13 @@ def format_issue_detail_table(issue) -> str:
         for req in issue.required_for:
             resolved_str = "[resolved]" if req.get("resolved") else "[unresolved]"
             lines.append(f"- {req['id']}: {req['summary']} {resolved_str}")
+        lines.append("")
+
+    if getattr(issue, "subtasks", None):
+        lines.append("Subtasks:")
+        for sub in issue.subtasks:
+            resolved_str = "[resolved]" if sub.get("resolved") else "[unresolved]"
+            lines.append(f"- {sub['id']}: {sub['summary']} {resolved_str}")
         lines.append("")
 
     lines.append("Comments:")

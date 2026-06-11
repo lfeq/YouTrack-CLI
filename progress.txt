@@ -207,3 +207,21 @@
 - Moved YouTrack issues `YTCLI-36`, `YTCLI-37`, `YTCLI-38`, and Epic `YTCLI-35` to "Fixed" status.
 - Note for the next person: The native dependency links PRD is fully complete. All issues in the project are resolved. There are no remaining open issues.
 
+
+2026-06-10: Completed Issue YTCLI-40 (Force UTF-8 output encoding at startup to fix Windows cp1252 crash).
+- Created new module `src/youtrack_cli/console.py` containing `_reconfigure_stream` and `_configure_output_encoding` to configure stdout/stderr with utf-8 encoding and backslashreplace error handler.
+- Handled non-reconfigurable streams (e.g. mock runners, pytest streams) and ValueError/OSError exceptions gracefully.
+- Imported and wired `_configure_output_encoding` into `main` inside `src/youtrack_cli/cli.py` to run at CLI startup.
+- Wrote TDD unit and regression tests in `tests/test_console.py` confirming correct argument reconfiguration, guard clauses, error swallowing, and proper UTF-8 output under simulated cp1252 constraints. All 146 tests pass.
+- Moved the completed PRD file to `docs/prd/completed/utf8-output-encoding-PRD.md`.
+- Moved YouTrack issue `YTCLI-40` and parent Epic `YTCLI-39` to "Fixed" state.
+- Note for the next person: The UTF-8 output encoding Epic/PRD is fully complete. The next feature/issue to work on is YTCLI-42 / Epic YTCLI-41 (Surface parent/subtasks hierarchy in issue show JSON + table).
+
+2026-06-11: Completed Issue YTCLI-42 (Surface parent/subtasks hierarchy in issue show JSON + table).
+- Implemented `parse_subtask_links` pure function in `src/youtrack_cli/issues.py` to extract parent and subtasks from the REST API links payload.
+- Added `parent` and `subtasks` fields to `IssueDetail` dataclass and populated them inside `show_issue` from the already-fetched links payload.
+- Updated `format_issue_detail_table` in `src/youtrack_cli/formatters.py` to render the `Parent:` line (immediately after Assignee) and `Subtasks:` section (alongside dependency sections).
+- Wrote TDD tests in `tests/test_issues.py` covering pure parser edge cases, integration in `show_issue`, and table/JSON formatting. All 152 tests pass.
+- Moved the completed PRD file to `docs/prd/completed/surface-subtask-hierarchy-in-show-PRD.md` and updated the Epic's description on YouTrack.
+- Moved YouTrack issue `YTCLI-42` and parent Epic `YTCLI-41` to "Fixed" state.
+- Note for the next person: The parent/subtask hierarchy in issue show PRD is fully complete. All issues in the project are resolved. There are no remaining open issues.

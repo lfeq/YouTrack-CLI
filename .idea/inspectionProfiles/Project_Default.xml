@@ -1,0 +1,50 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="typing-extensions" />
+          <option value="httpx" />
+          <option value="aiohttp" />
+          <option value="python-jose" />
+          <option value="strawberry-graphql" />
+          <option value="openai" />
+          <option value="fastapi" />
+          <option value="uvicorn" />
+          <option value="sqlmodel" />
+          <option value="asyncpg" />
+          <option value="python-dotenv" />
+          <option value="pydantic-settings" />
+          <option value="aiosqlite" />
+          <option value="pydantic" />
+          <option value="sqlalchemy" />
+          <option value="openai-agents" />
+          <option value="psycopg2-binary" />
+          <option value="alembic" />
+          <option value="websockets" />
+          <option value="graphql-core" />
+          <option value="beautifulsoup4" />
+          <option value="python-docx" />
+          <option value="opentelemetry-api" />
+          <option value="opentelemetry-sdk" />
+          <option value="opentelemetry-instrumentation-fastapi" />
+          <option value="opentelemetry-instrumentation-httpx" />
+          <option value="opentelemetry-instrumentation-sqlalchemy" />
+          <option value="opentelemetry-exporter-otlp-proto-grpc" />
+          <option value="opentelemetry-instrumentation-openai" />
+          <option value="mako" />
+          <option value="python-multipart" />
+          <option value="urllib3" />
+        </list>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="PyPep8NamingInspection" enabled="true" level="WEAK WARNING" enabled_by_default="true">
+      <option name="ignoredErrors">
+        <list>
+          <option value="N806" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>

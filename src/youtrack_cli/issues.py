@@ -407,6 +407,8 @@ class IssueDetail:
     comments: List[Comment] = None
     depends_on: List[dict] = field(default_factory=list)
     required_for: List[dict] = field(default_factory=list)
+    parent: Optional[dict] = None
+    subtasks: List[dict] = field(default_factory=list)
 
 
 
@@ -451,6 +453,7 @@ def show_issue(client: YouTrackClient, issue_id: str) -> IssueDetail:
         )
         
     depends_on, required_for, _ = parse_dependency_links(data.get("links"))
+    parent, subtasks = parse_subtask_links(data.get("links"))
 
     return IssueDetail(
         id=data["id"],
@@ -461,7 +464,9 @@ def show_issue(client: YouTrackClient, issue_id: str) -> IssueDetail:
         assignee=item_assignee,
         comments=comments,
         depends_on=depends_on,
-        required_for=required_for
+        required_for=required_for,
+        parent=parent,
+        subtasks=subtasks
     )
 
 
@@ -588,11 +593,40 @@ def parse_dependency_links(links: Optional[List[dict]]) -> tuple[List[dict], Lis
     return depends_on, required_for, blocked
 
 
+def parse_subtask_links(links: Optional[List[dict]]) -> tuple[Optional[dict], List[dict]]:
+    """Parse raw links from YouTrack to extract parent and subtasks."""
+    parent = None
+    subtasks = []
 
+    if not links:
+        return parent, subtasks
 
+    for link in links:
+        link_type = link.get("linkType")
+        if not link_type or link_type.get("name") != "Subtask":
+            continue
 
+        direction = link.get("direction")
+        if direction == "BOTH":
+            continue
 
+        issues = link.get("issues") or []
+        for issue in issues:
+            id_readable = issue.get("idReadable")
+            summary = issue.get("summary", "")
+            resolved = issue.get("resolved", False)
 
+            item = {
+                "id": id_readable,
+                "summary": summary,
+                "resolved": resolved
+            }
 
+            if direction == "INWARD":
+                if parent is None:
+                    parent = item
+            elif direction == "OUTWARD":
+                subtasks.append(item)
 
+    return parent, subtasks
 

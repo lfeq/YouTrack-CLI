@@ -2,12 +2,14 @@ import sys
 from importlib.metadata import version as _pkg_version
 import click
 from youtrack_cli.config import save_config, ConfigError
+from youtrack_cli.console import _configure_output_encoding
 
 @click.group()
 @click.version_option(version=_pkg_version("youtrack-cli"), prog_name="youtrack")
 def main():
     """YouTrack CLI — Interact with YouTrack from the command line."""
-    pass
+    _configure_output_encoding()
+
 
 @main.command(name="login")
 @click.option("--url", required=True, help="YouTrack base URL (e.g. https://example.youtrack.cloud)")
